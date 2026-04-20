@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#020325">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Bubbles</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- PWA Meta Tags -->
+    <meta name="description" content="Reinventing the address book. Organize your contacts into bubbles." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bubbles" />
+
+    <!-- PWA Manifest (path relative to this page for project sites like /repo-name/) -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ===================== VIEW: BUBBLE MODE ===================== -->
+    <div class="view view--active" id="view-bubbles">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <h1 class="header__title" id="bubbles-title">Your Bubbles</h1>
+        <button class="header__icon-btn" id="search-btn-bubbles" aria-label="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="mode-toggle" id="toggle-bubbles">
+        <button class="mode-toggle__btn" data-mode="contact">Contact Mode</button>
+        <button class="mode-toggle__btn mode-toggle__btn--active" data-mode="bubble">Bubble Mode</button>
+      </div>
+
+      <div class="bubble-chart" id="bubble-chart">
+        <div class="bg-glow"></div>
+        <!-- Bubbles and avatars injected by app.js -->
+      </div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Add" id="add-btn" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: CONTACT MODE ===================== -->
+    <div class="view" id="view-contacts">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <h1 class="header__title">Your Contacts</h1>
+        <button class="header__icon-btn" aria-label="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="mode-toggle" id="toggle-contacts">
+        <button class="mode-toggle__btn mode-toggle__btn--active" data-mode="contact">Contact Mode</button>
+        <button class="mode-toggle__btn" data-mode="bubble">Bubble Mode</button>
+      </div>
+
+      <div class="contacts-list" id="contacts-list">
+        <!-- Contact cards injected by app.js -->
+      </div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: BUBBLE DETAIL ===================== -->
+    <div class="view" id="view-detail">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-btn" id="back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail" id="detail-title">Work Bubble</h1>
+        <button class="header__icon-btn" aria-label="Search">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="mode-toggle" id="toggle-detail">
+        <button class="mode-toggle__btn" data-mode="contact">Contact Mode</button>
+        <button class="mode-toggle__btn mode-toggle__btn--active" data-mode="bubble">Bubble Mode</button>
+      </div>
+
+      <div class="bubble-chart bubble-chart--detail" id="bubble-detail-chart">
+        <div class="bg-glow"></div>
+        <!-- Detail bubble injected by app.js -->
+      </div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: USER PROFILE ===================== -->
+    <!-- Opened by tapping the profile icon in the bottom nav -->
+    <div class="view" id="view-profile">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <!-- Pill-style back button -->
+        <button class="header__back-pill" id="profile-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail" id="profile-title">My Profile</h1>
+        <!-- Spacer keeps the title visually centred -->
+        <div class="header__spacer"></div>
+      </div>
+
+      <!-- Scrollable content is injected here by app.js → renderUserProfile() -->
+      <div class="profile-scroll" id="profile-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8"  cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: CONTACT DETAIL ===================== -->
+    <!-- Opened by tapping a contact card or an avatar inside a bubble -->
+    <div class="view" id="view-contact-detail">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="contact-detail-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail" id="contact-detail-title">Contact</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <!-- Scrollable content is injected here by app.js → renderContactDetail() -->
+      <div class="profile-scroll" id="contact-detail-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8"  cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: ADD / UPDATE CONTACT INFO ===================== -->
+    <div class="view" id="view-add-contact">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <h1 class="header__title">Add Contact Info</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="add-contact">
+        <div class="add-contact__options" aria-label="Add or update contact information options">
+          <button class="add-contact-option" type="button" data-action="bubble-tap">
+            <span class="add-contact-option__icon" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <circle cx="14" cy="20" r="9" stroke="currentColor" stroke-width="2.4"/>
+                <circle cx="25" cy="12" r="6" stroke="currentColor" stroke-width="2.4"/>
+                <path d="M25 8v8M21 12h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="add-contact-option__copy">
+              <span class="add-contact-option__title">Bubble Tap</span>
+              <span class="add-contact-option__description">Share your Bubble Tap profile using the system share sheet or a profile link</span>
+            </span>
+          </button>
+
+          <button class="add-contact-option" type="button" data-action="import-cloud">
+            <span class="add-contact-option__icon" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <path d="M12.5 27H25a7 7 0 0 0 .8-13.95A10 10 0 0 0 7.1 16.2 5.5 5.5 0 0 0 8.5 27h1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18 15v12M12.5 21.5L18 27l5.5-5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="add-contact-option__copy">
+              <span class="add-contact-option__title">Import from Cloud</span>
+              <span class="add-contact-option__description">Add and merge contacts from iCloud, Google contacts, Outlook, and more</span>
+            </span>
+          </button>
+
+          <button class="add-contact-option" type="button" data-action="paste-text">
+            <span class="add-contact-option__icon" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <path d="M11 8h11l5 5v15H11V8z" stroke="currentColor" stroke-width="2.4" stroke-dasharray="6 5" stroke-linejoin="round"/>
+                <path d="M22 8v6h5" stroke="currentColor" stroke-width="2.4" stroke-dasharray="6 5" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="add-contact-option__copy">
+              <span class="add-contact-option__title">Paste Text</span>
+              <span class="add-contact-option__description">Copy and paste contact info from anywhere&mdash;email signatures, messages, or business cards</span>
+            </span>
+          </button>
+
+          <button class="add-contact-option" type="button" data-action="upload-photo">
+            <span class="add-contact-option__icon" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <path d="M10 6h13l5 5v19H10V6z" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+                <path d="M23 6v6h5" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+                <path d="M18 25V15M14 19l4-4 4 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="add-contact-option__copy">
+              <span class="add-contact-option__title">Upload Photo</span>
+              <span class="add-contact-option__description">Upload a photo or screenshot and let AI extract contact details automatically</span>
+            </span>
+          </button>
+
+          <button class="add-contact-option" type="button" data-action="manual-entry">
+            <span class="add-contact-option__icon" aria-hidden="true">
+              <svg viewBox="0 0 36 36" fill="none">
+                <path d="M7 27.5l4.5-1 16-16a3 3 0 0 0-4.2-4.2l-16 16-1 4.5c-.1.5.3.9.7.7z" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+                <path d="M20.5 9.5l6 6M10.5 22.5l3 3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="add-contact-option__copy">
+              <span class="add-contact-option__title">Manual Entry</span>
+              <span class="add-contact-option__description">Enter whatever info you have on hand and we'll update the contact</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: UPLOAD PHOTO ===================== -->
+    <div class="view" id="view-upload-photo">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="upload-photo-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail">Upload Photo</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="upload-photo" id="upload-photo-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: MANUAL ENTRY ===================== -->
+    <div class="view" id="view-manual-entry">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="manual-entry-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail" id="manual-entry-title">New Contact</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="profile-scroll manual-entry" id="manual-entry-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: PASTE TEXT ===================== -->
+    <div class="view" id="view-paste-text">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="paste-text-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail">Paste Text</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="paste-text" id="paste-text-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: IMPORT FROM CLOUD ===================== -->
+    <div class="view" id="view-import-cloud">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="import-cloud-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail">Import Contacts</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="cloud-import" id="cloud-import-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===================== VIEW: BUBBLE TAP ===================== -->
+    <div class="view" id="view-bubble-tap">
+      <div class="header">
+        <div class="header__gradient"></div>
+        <button class="header__back-pill" id="bubble-tap-back-btn" aria-label="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <h1 class="header__title header__title--detail">Bubble Tap</h1>
+        <div class="header__spacer"></div>
+      </div>
+
+      <div class="bubble-tap" id="bubble-tap-content"></div>
+
+      <nav class="bottom-nav">
+        <button class="bottom-nav__btn" aria-label="Bubbles" data-nav="bubbles">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="19" cy="17" r="5" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8" cy="19" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn bottom-nav__btn--active" aria-label="Add" data-nav="add-contact">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="bottom-nav__btn" aria-label="Profile" data-nav="profile">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="9.5" r="4.5" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M7 22.5c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+
+    <div class="drag-layer" id="drag-layer" aria-hidden="true">
+      <div class="drag-ghost" id="drag-ghost"></div>
+      <button class="trash-drop" id="trash-drop" type="button" aria-label="Remove">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M4 7h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M9 3h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M8 7v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M10 11v5M14 11v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="selection-sheet" id="selection-sheet" aria-hidden="true">
+      <div class="selection-sheet__backdrop" id="selection-sheet-backdrop"></div>
+      <div class="selection-sheet__panel">
+        <div class="selection-sheet__grabber"></div>
+        <div class="selection-sheet__header">
+          <h2 class="selection-sheet__title" id="selection-sheet-title">Add to New Bubble</h2>
+          <p class="selection-sheet__subtitle">Select more contacts to include.</p>
+        </div>
+        <div class="selection-sheet__fields">
+          <label class="selection-sheet__field">
+            <span class="selection-sheet__label">Bubble Name</span>
+            <input class="selection-sheet__input" id="selection-sheet-name" type="text" placeholder="New Bubble" />
+          </label>
+          <label class="selection-sheet__field">
+            <span class="selection-sheet__label">Search Contacts</span>
+            <input class="selection-sheet__input" id="selection-sheet-search" type="search" placeholder="Search all contacts" />
+          </label>
+        </div>
+        <div class="selection-sheet__list" id="selection-sheet-list"></div>
+        <div class="selection-sheet__actions">
+          <button class="selection-sheet__btn" id="selection-sheet-cancel" type="button">Not Now</button>
+          <button class="selection-sheet__btn selection-sheet__btn--primary" id="selection-sheet-confirm" type="button">Done</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .app -->
+
+</body>
+</html>
