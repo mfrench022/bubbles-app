@@ -4,61 +4,93 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Bubbles is a vanilla JS progressive web app (PWA) — a personal address book where contacts are organized into nested "bubble" groups. There is no build step, no framework, no bundler, and no package manager. The entire app runs directly in the browser.
+Bubbles is a React Native app (built with Expo) — a personal address book where contacts are organized into nested "bubble" groups. The original PWA files (`index.html`, `app.js`, `style.css`, `serviceworker.js`) are preserved in the repo root but the active codebase is the React Native app.
 
 ## Running the App
 
-Open `index.html` in a browser, or serve it with any static file server:
-
 ```bash
-npx serve .
-# or
-python3 -m http.server
+npm install
+npx expo start          # starts the dev server (iOS/Android/Web)
+npx expo start --ios    # open in iOS Simulator
+npx expo start --web    # open in browser
 ```
-
-The PWA service worker (`serviceworker.js`) only activates over HTTP/HTTPS, not via `file://`, so use a local server to test offline behavior and caching.
 
 ## File Structure
 
-| File | Purpose |
-|---|---|
-| `app.js` | All data, state, rendering logic, and event wiring |
-| `index.html` | Static HTML shell — all views are pre-declared here |
-| `style.css` | All styling, using CSS custom properties for design tokens |
-| `serviceworker.js` | Caching strategies for static assets, API responses, and images |
-| `manifest.json` | PWA metadata |
+```
+app/                    # Expo Router screens
+  _layout.tsx           # Root stack navigator
+  (main)/
+    _layout.tsx         # Main stack layout
+    index.tsx           # Bubbles + Contacts main screen (mode toggle)
+  bubble/[id].tsx       # Bubble detail screen
+  contact/[id].tsx      # Contact detail screen
+  profile.tsx           # User profile screen
+  add-contact/
+    index.tsx           # Add contact method picker
+    manual.tsx          # Manual entry form
+    paste.tsx           # Paste text parser
+    photo.tsx           # Upload photo + OCR
+    cloud.tsx           # Import from cloud (native placeholder)
+    bubble-tap.tsx      # Share profile / Bubble Tap
+
+src/
+  components/           # Shared UI components
+    Avatar.tsx          # Contact avatar (photo or initials)
+    BubbleChart.tsx     # Main bubble chart with layout algorithms
+    BottomNav.tsx       # Bottom tab navigation bar
+    BubbleTags.tsx      # Bubble chip pills
+    ConfirmDialog.tsx   # Confirmation modal
+    ContactCard.tsx     # Contact list row
+    Header.tsx          # App header with optional search
+    Icons.tsx           # SVG icon components
+    InfoCard.tsx        # Contact detail info rows
+    ModeToggle.tsx      # Contact/Bubble mode segmented control
+    SelectionSheet.tsx  # Bottom sheet for creating bubbles
+
+  data/
+    bubbles.ts          # Default BUBBLES data + Bubble type
+    contacts.ts         # Default CONTACTS data + Contact type
+    user.ts             # USER_PROFILE + DEMO_PROFILE_IMAGES
+
+  store/
+    index.ts            # Zustand store — all app state and mutations
+
+  theme/
+    index.ts            # Design tokens (Colors, Typography, Spacing, Radius)
+
+  utils/
+    layout.ts           # Avatar golden-angle spiral + bubble layout algorithms
+    storage.ts          # AsyncStorage helpers
+```
 
 ## Architecture
 
-### Data (top of `app.js`)
-All data lives as plain JS constants at the top of `app.js`:
-- `USER_PROFILE` — the logged-in user's info
-- `CONTACTS` — array of contact objects; each contact has required fields (`id`, `name`, `email`, `phone`, `color`) and optional fields (`slack`, `teams`, `birthday`, `instagram`, `twitter`, `linkedin`, `notes`)
-- `BUBBLES` — array of bubble group objects; positions (`x`, `y`, `size`) are percentages of the chart area; bubbles reference contacts via `contactIds` and can nest via `subBubbleIds`/`parentId`
+### State Management
+The app uses **Zustand** (`src/store/index.ts`) for all global state:
+- `contacts` — array of Contact objects
+- `bubbles` — array of Bubble objects
+- All mutations (addContact, updateContact, deleteContact, addBubble, nestBubble, etc.)
+- `initialize()` — loads persisted data from AsyncStorage on app start
+- `save()` — persists current state to AsyncStorage
+- `reset()` — restores default demo data
 
-### Views
-Five views are pre-rendered in `index.html` (`.view` divs) and shown/hidden via the `.view--active` class with CSS opacity transitions:
-- `view-bubbles` — main bubble chart
-- `view-contacts` — flat contact list
-- `view-detail` — single bubble drill-down with its contacts
-- `view-profile` — current user profile
-- `view-contact-detail` — individual contact detail page
+### Navigation
+Uses **Expo Router** (file-based routing) with a root stack navigator:
+- `/(main)/index` — main screen (bubbles + contacts with mode toggle)
+- `/bubble/[id]` — pushed when tapping a bubble
+- `/contact/[id]` — pushed when tapping a contact or avatar
+- `/profile` — pushed from bottom nav profile tab
+- `/add-contact/*` — pushed from bottom nav add tab
 
-Navigation state is tracked in three module-level variables: `currentView`, `activeBubble`, `activeContactId`, and `previousView`.
+### Bubble Chart
+`BubbleChart.tsx` renders bubbles and avatars using absolute positioning. Layout is computed via `src/utils/layout.ts`:
+- `layoutAvatars()` — golden-angle spiral algorithm for placing avatars inside bubbles
+- `layoutTopLevelBubbles()` — resolves collisions between top-level bubbles
+- `layoutNestedBubbles()` — positions sub-bubbles within their parent
 
-### Rendering
-Dynamic content (bubble charts, contact cards, profile pages) is injected into the pre-existing view containers by render functions in `app.js`. Avatar placement inside bubbles uses a golden-angle spiral algorithm (`layoutAvatars`) that tries progressively smaller avatar sizes until all contacts fit without overlap, with exclusion zones reserved for labels and sub-bubbles.
+### Design Tokens
+All colors, typography, spacing, and shadows are in `src/theme/index.ts`. The app is dark-mode-only with a deep navy background (`#050714`).
 
-### Service Worker Caching
-Three named caches with distinct strategies:
-- Static assets → stale-while-revalidate
-- `api.are.na` API calls → network-first with 5 s timeout
-- Images (including S3/Arena CDN) → cache-first
-
-## Design Tokens
-
-All visual constants are CSS custom properties in `style.css` under `:root`. Key tokens: `--bg`, `--text`, `--glass`, `--glass-hover`, `--toggle-active`. The app is dark-mode-only with a deep navy background (`#020325`).
-
-## Customizing Data
-
-To add/edit contacts or bubbles, edit the `CONTACTS` and `BUBBLES` arrays near the top of `app.js`. Bubble positions (`x`, `y`, `size`) are 0–100 percent values relative to the chart container.
+### Data
+To add/edit contacts or bubbles, edit the arrays in `src/data/contacts.ts` and `src/data/bubbles.ts`. Bubble positions (`x`, `y`, `size`) are 0–100 percent values relative to the chart container width.

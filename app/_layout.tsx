@@ -1,0 +1,80 @@
+import { useEffect } from 'react';
+import { Stack, usePathname, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+import { useStore } from '../src/store';
+import { Colors } from '../src/theme';
+import { AppBackground } from '../src/components/AppBackground';
+import { BottomNav } from '../src/components/BottomNav';
+
+export default function RootLayout() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const initialize = useStore(s => s.initialize);
+  const showBottomNav = pathname !== '/add-contact/manual';
+  const activeTab = pathname.startsWith('/add-contact')
+    ? 'add'
+    : pathname === '/profile'
+      ? 'profile'
+      : 'bubbles';
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return (
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <AppBackground>
+          <View style={styles.appShell}>
+            <View style={styles.content}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: Colors.appBg },
+                  animation: 'none',
+                }}
+              >
+                <Stack.Screen name="(main)" />
+                <Stack.Screen name="bubble/[id]" />
+                <Stack.Screen name="contact/[id]" />
+                <Stack.Screen name="profile" />
+                <Stack.Screen
+                  name="add-contact"
+                  options={{ animation: 'fade_from_bottom' }}
+                />
+              </Stack>
+            </View>
+
+            {showBottomNav ? (
+              <BottomNav
+                active={activeTab}
+                onPress={tab => {
+                  if (tab === 'bubbles') router.replace('/');
+                  else if (tab === 'add') router.replace('/add-contact');
+                  else router.replace('/profile');
+                }}
+              />
+            ) : null}
+          </View>
+        </AppBackground>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Colors.appBg,
+  },
+  appShell: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+});

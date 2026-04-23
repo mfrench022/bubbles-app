@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Bubbles",
+    "slug": "bubbles-react-v2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./icons/icon-192.png",
+    "scheme": "bubbles",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#050714",
+    "splash": {
+      "backgroundColor": "#050714"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "co.michaelfrench.bubbles"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./icons/icon-192.png",
+        "backgroundColor": "#050714"
+      },
+      "package": "co.michaelfrench.bubbles"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./icons/icon-192.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Bubbles to access photos for contact profile pictures."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
