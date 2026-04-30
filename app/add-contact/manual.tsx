@@ -6,7 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useStore, initials, getTodayNoteDate, getImportedContactColor } from '../../src/store';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { Colors, Radius, Spacing } from '../../src/theme';
 import { DEMO_PROFILE_IMAGES } from '../../src/data/user';
 
@@ -86,6 +86,7 @@ export default function ManualEntryScreen() {
     return new Set(bubbles.filter(b => b.contactIds.includes(parsedContactId!)).map(b => b.id));
   });
   const [status, setStatus] = useState('');
+  const headerInset = useHeaderInset();
 
   const pickPhoto = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -160,7 +161,11 @@ export default function ManualEntryScreen() {
         centerTitle
       />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <TouchableOpacity style={styles.avatarBtn} onPress={pickPhoto} activeOpacity={0.8}>
           {photoSrc ? (
             <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
@@ -305,7 +310,7 @@ const styles = StyleSheet.create({
   demoPhotoSelected: { borderColor: Colors.primarySolid },
   demoPhotoImg: { width: 40, height: 40, borderRadius: 20 },
   card: {
-    backgroundColor: 'rgba(17, 22, 51, 0.74)',
+    backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg, borderWidth: 1,
     borderColor: Colors.stroke, padding: Spacing.lg, gap: 12,
   },
@@ -317,7 +322,7 @@ const styles = StyleSheet.create({
   socialInput: { flex: 1 },
   removeBtn: {
     width: 30, height: 44, alignItems: 'center', justifyContent: 'center',
-    borderRadius: 8, backgroundColor: 'rgba(217,83,79,0.15)',
+    borderRadius: 8, backgroundColor: '#FBE8E6',
   },
   removeBtnText: { fontSize: 18, color: '#d9534f', fontWeight: '600' },
   addRowBtn: { paddingVertical: 4 },
@@ -325,19 +330,19 @@ const styles = StyleSheet.create({
   bubblePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   bubbleChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: 'rgba(12,15,35,0.6)', borderWidth: 1, borderColor: Colors.stroke,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
-  bubbleChipSelected: { backgroundColor: Colors.toggleActive, borderColor: 'rgba(115,132,198,0.5)' },
+  bubbleChipSelected: { backgroundColor: Colors.primary, borderColor: Colors.primarySolid },
   bubbleChipText: { fontSize: 14, color: Colors.textMuted },
   bubbleChipTextSelected: { color: Colors.text },
   actions: { flexDirection: 'row', gap: 8 },
   actionBtn: {
     flex: 1, height: 48, borderRadius: Radius.full,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(17,22,51,0.74)', borderWidth: 1, borderColor: Colors.stroke,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
-  actionBtnPrimary: { backgroundColor: Colors.toggleActive, borderColor: 'rgba(115,132,198,0.5)' },
+  actionBtnPrimary: { backgroundColor: Colors.primarySolid, borderColor: Colors.primarySolid },
   actionBtnText: { fontSize: 16, fontWeight: '500', color: Colors.text },
-  actionBtnPrimaryText: { color: Colors.text },
+  actionBtnPrimaryText: { color: Colors.inverseText },
   status: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginTop: 4 },
 });

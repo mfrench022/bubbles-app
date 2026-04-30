@@ -4,8 +4,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore, getTodayNoteDate, getImportedContactColor } from '../../src/store';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { Avatar } from '../../src/components/Avatar';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { Colors, Radius, Spacing } from '../../src/theme';
 
 function parseContactText(text: string): Record<string, string> {
@@ -47,6 +48,8 @@ export default function PasteTextScreen() {
   const contacts = useStore(s => s.contacts);
   const updateContact = useStore(s => s.updateContact);
   const addContact = useStore(s => s.addContact);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   const [text, setText] = useState('');
   const [selectedContactId, setSelectedContactId] = useState<number | '__create__' | null>(null);
@@ -107,7 +110,11 @@ export default function PasteTextScreen() {
     <View style={styles.screen}>
       <Header title="Paste Text" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <TextInput
           style={styles.textarea}
           value={text}
@@ -208,7 +215,7 @@ const styles = StyleSheet.create({
   clearBtn: { alignSelf: 'flex-end' },
   clearBtnText: { fontSize: 14, color: Colors.textMuted },
   card: {
-    backgroundColor: 'rgba(17, 22, 51, 0.74)', borderRadius: Radius.lg,
+    backgroundColor: Colors.cardBg, borderRadius: Radius.lg,
     borderWidth: 1, borderColor: Colors.stroke, padding: Spacing.lg, gap: 8,
   },
   cardTitle: {
@@ -222,7 +229,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 8, borderRadius: Radius.md, paddingHorizontal: 8,
   },
-  matchRowSelected: { backgroundColor: 'rgba(115, 132, 198, 0.12)' },
+  matchRowSelected: { backgroundColor: Colors.primary },
   matchMeta: { flex: 1 },
   matchName: { fontSize: 16, fontWeight: '500', color: Colors.text },
   matchDetail: { fontSize: 13, color: Colors.textMuted },
@@ -234,13 +241,13 @@ const styles = StyleSheet.create({
   createAvatarText: { fontSize: 20, fontWeight: '600', color: Colors.text },
   applyBtn: {
     height: 48, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.toggleActive, borderWidth: 1, borderColor: 'rgba(115,132,198,0.5)',
+    backgroundColor: Colors.primarySolid, borderWidth: 1, borderColor: Colors.primarySolid,
   },
   applyBtnDisabled: { opacity: 0.5 },
-  applyBtnText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  applyBtnText: { fontSize: 16, fontWeight: '600', color: Colors.inverseText },
   emptyCard: {
     padding: Spacing.lg, borderRadius: Radius.lg,
-    backgroundColor: 'rgba(17,22,51,0.5)', borderWidth: 1, borderColor: Colors.stroke,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 6 },
   emptyText: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },

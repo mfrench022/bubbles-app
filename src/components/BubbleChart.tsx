@@ -2,6 +2,7 @@ import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   Animated,
   PanResponder,
+  PanResponderGestureState,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,28 +10,33 @@ import {
   ViewStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useStore } from '../store';
 import { Bubble } from '../data/bubbles';
 import { layoutAvatars, layoutTopLevelBubbles, layoutNestedBubbles, Circle } from '../utils/layout';
 import { Avatar } from './Avatar';
-import { Colors, Shadows } from '../theme';
-import { PlusIcon, TrashIcon } from './Icons';
+import { useHeaderInset } from './Header';
+import { Colors, Shadows, getBubblePalette } from '../theme';
+import { TrashIcon } from './Icons';
 
 interface BubbleChartProps {
   chartWidth: number;
   chartHeight: number;
   onBubbleTap: (bubbleId: string) => void;
   onAvatarTap: (contactId: number) => void;
+  interactiveCanvas?: boolean;
+  visualScale?: Animated.Value | number;
+  interactionScale?: number;
+  interactionPaused?: boolean;
   onAvatarLongPress?: (contactId: number, bubbleId: string) => void;
   filterBubbleId?: string;
+  onZoomScaleLimitChange?: (scale: number) => void;
   onCreateBubbleRequest?: (options: {
     parentBubbleId?: string;
     preselectedContactIds: number[];
     initialBubbleName?: string;
   }) => void;
-  onAddBubbleTap?: () => void;
 }
 
 interface RenderedAvatar {
@@ -73,18 +79,48 @@ interface HitSource {
   onTap: () => void;
 }
 
+interface CameraState {
+  x: number;
+  y: number;
+}
+
 const LONG_PRESS_MS = 240;
 const MOVE_CANCEL_THRESHOLD = 10;
 const TRASH_SIZE = 72;
+const CANVAS_WORLD_SCALE_X = 2.05;
+const CANVAS_WORLD_SCALE_Y = 2.05;
+const CANVAS_PAN_PADDING = 56;
+const CANVAS_ROAM_PADDING = 24;
+const FOCUS_ATTRACTION_RADIUS = 340;
+const FOCUS_LOCK_RADIUS = 232;
+const FOCUS_LOCK_HARD_RADIUS = 88;
+const FOCUS_TARGET_STICKINESS = 42;
+const FOCUS_STROKE_OFFSET = 10;
+const CAMERA_DRAG_SMOOTHING = 0.34;
+const CAMERA_RELEASE_SPRING_TENSION = 120;
+const CAMERA_RELEASE_SPRING_FRICTION = 16;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function smoothstep(value: number) {
+  const t = clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
+}
 
 export function BubbleChart({
   chartWidth,
   chartHeight,
   onBubbleTap,
   onAvatarTap,
+  interactiveCanvas = false,
+  visualScale = 1,
+  interactionScale = 1,
+  interactionPaused = false,
   filterBubbleId,
+  onZoomScaleLimitChange,
   onCreateBubbleRequest,
-  onAddBubbleTap,
 }: BubbleChartProps) {
   const {
     bubbles,
@@ -107,24 +143,42 @@ export function BubbleChart({
   const getContact = useCallback((id: number) => contacts.find(c => c.id === id), [contacts]);
 
   const dragAnim = useRef(new Animated.ValueXY()).current;
+  const cameraAnim = useRef(new Animated.ValueXY()).current;
+  const headerInset = useHeaderInset();
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [pressingKey, setPressingKey] = useState<string | null>(null);
+  const [focusedBubbleId, setFocusedBubbleId] = useState<string | null>(null);
 
   const dragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragSourceRef = useRef<DragSource | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const pendingHitRef = useRef<HitSource | null>(null);
   const pressPointRef = useRef<{ x: number; y: number } | null>(null);
+  const gestureStartCameraRef = useRef<CameraState>({ x: 0, y: 0 });
+  const cameraRef = useRef<CameraState>({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const focusTargetRef = useRef<string | null>(null);
+  const cameraAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const cameraListenerRef = useRef<CameraState>({ x: 0, y: 0 });
 
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
 
   useEffect(() => () => {
-    if (dragTimerRef.current) {
-      clearTimeout(dragTimerRef.current);
-    }
+    if (dragTimerRef.current) clearTimeout(dragTimerRef.current);
   }, []);
+
+  const enableInfiniteCanvas = interactiveCanvas && !filterBubbleId;
+  const layoutDiameter = enableInfiniteCanvas
+    ? Math.max(
+        chartWidth * CANVAS_WORLD_SCALE_X,
+        chartHeight * CANVAS_WORLD_SCALE_Y,
+        chartWidth + 280
+      )
+    : chartWidth;
+  const layoutWidth = enableInfiniteCanvas ? layoutDiameter : chartWidth;
+  const layoutHeight = enableInfiniteCanvas ? layoutDiameter : chartHeight;
 
   const { renderedBubbles, renderedAvatars } = useMemo(() => {
     if (!chartWidth || !chartHeight) return { renderedBubbles: [], renderedAvatars: [] };
@@ -132,19 +186,7 @@ export function BubbleChart({
 
     const topLevelBubbles = filterBubbleId
       ? bubbles.filter(b => b.id === filterBubbleId)
-      : [
-          ...bubbles.filter(b => !b.parentId),
-          {
-            id: '__new-bubble__',
-            label: '',
-            x: 80,
-            y: 72,
-            size: 14,
-            contactIds: [],
-            subBubbleIds: [],
-            isNewBubbleTrigger: true,
-          },
-        ];
+      : bubbles.filter(b => !b.parentId);
 
     const layoutMap = filterBubbleId
       ? (() => {
@@ -159,7 +201,7 @@ export function BubbleChart({
             size: (size / chartWidth) * 100,
           }]]);
         })()
-      : layoutTopLevelBubbles(topLevelBubbles, chartWidth, chartHeight);
+      : layoutTopLevelBubbles(topLevelBubbles, layoutWidth, layoutHeight, 16, 10, chartWidth, true);
 
     const rBubbles: RenderedBubble[] = [];
     const rAvatars: RenderedAvatar[] = [];
@@ -169,8 +211,8 @@ export function BubbleChart({
       layoutData: { x: number; y: number; size: number },
       options?: { hiddenShell?: boolean; expanded?: boolean }
     ) => {
-      const pxX = (layoutData.x / 100) * chartWidth;
-      const pxY = (layoutData.y / 100) * chartHeight;
+      const pxX = (layoutData.x / 100) * layoutWidth;
+      const pxY = (layoutData.y / 100) * layoutHeight;
       const pxSize = (layoutData.size / 100) * chartWidth;
       const radius = pxSize / 2;
       const cx = pxX + radius;
@@ -185,22 +227,18 @@ export function BubbleChart({
       let nestedLayouts: Array<{ id: string; x: number; y: number; size: number }> = [];
 
       if (expanded && showNestedBubbles && nestedBubbles.length > 0) {
-        nestedLayouts = layoutNestedBubbles(layoutData, nestedBubbles, chartWidth, chartHeight);
-        nestedLayouts.forEach((nl, i) => {
-          processBubble(nestedBubbles[i], nl);
-        });
+        nestedLayouts = layoutNestedBubbles(layoutData, nestedBubbles, layoutWidth, layoutHeight, 4, 4, chartWidth);
+        nestedLayouts.forEach((nl, i) => processBubble(nestedBubbles[i], nl));
       }
 
-      const visualContactIds = !expanded || bubble.isNewBubbleTrigger
-        ? []
-        : getVisualContactIds(bubble);
+      const visualContactIds = !expanded ? [] : getVisualContactIds(bubble);
       const rawAvatarSize = Math.max(18, radius * 0.38);
       const labelReserveRadius = Math.min(radius * 0.34, Math.max(26, bubble.label.replace(/\n/g, '').length * 4.2));
       const exclusionCircles: Circle[] = [{ x: 0, y: 0, r: labelReserveRadius }];
 
       nestedLayouts.forEach(nl => {
-        const subPxX = (nl.x / 100) * chartWidth;
-        const subPxY = (nl.y / 100) * chartHeight;
+        const subPxX = (nl.x / 100) * layoutWidth;
+        const subPxY = (nl.y / 100) * layoutHeight;
         const subRadius = ((nl.size / 100) * chartWidth) / 2;
         exclusionCircles.push({
           x: subPxX + subRadius - cx,
@@ -239,14 +277,297 @@ export function BubbleChart({
     });
 
     return { renderedBubbles: rBubbles, renderedAvatars: rAvatars };
-  }, [bubbles, chartWidth, chartHeight, filterBubbleId, getVisualContactIds]);
+  }, [bubbles, chartWidth, chartHeight, filterBubbleId, getVisualContactIds, layoutHeight, layoutWidth]);
 
-  const bubbleMap = useMemo(
-    () => new Map(renderedBubbles.map(item => [item.bubble.id, item])),
+  const contentBounds = useMemo(() => {
+    if (!enableInfiniteCanvas) return null;
+    const visibleBubbles = renderedBubbles.filter(item => !item.hiddenShell);
+    if (!visibleBubbles.length) return null;
+
+    const bounds = visibleBubbles.reduce(
+      (acc, item) => ({
+        minX: Math.min(acc.minX, item.left),
+        maxX: Math.max(acc.maxX, item.left + item.pxSize),
+        minY: Math.min(acc.minY, item.top),
+        maxY: Math.max(acc.maxY, item.top + item.pxSize),
+      }),
+      { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+    );
+
+    return {
+      minX: bounds.minX - CANVAS_PAN_PADDING,
+      maxX: bounds.maxX + CANVAS_PAN_PADDING,
+      minY: bounds.minY - CANVAS_PAN_PADDING,
+      maxY: bounds.maxY + CANVAS_PAN_PADDING,
+      centerX: (bounds.minX + bounds.maxX) / 2,
+      centerY: (bounds.minY + bounds.maxY) / 2,
+      width: bounds.maxX - bounds.minX + CANVAS_PAN_PADDING * 2,
+      height: bounds.maxY - bounds.minY + CANVAS_PAN_PADDING * 2,
+    };
+  }, [enableInfiniteCanvas, renderedBubbles]);
+
+  const bubbleMap = useMemo(() => new Map(renderedBubbles.map(item => [item.bubble.id, item])), [renderedBubbles]);
+  const avatarInteractionsEnabled = Boolean(filterBubbleId);
+  const focusableBubbles = useMemo(
+    () => renderedBubbles.filter(item => !item.hiddenShell),
     [renderedBubbles]
   );
+  const chartCenter = useMemo(
+    () => ({ x: chartWidth / 2, y: chartHeight / 2 }),
+    [chartHeight, chartWidth]
+  );
+  const effectiveInteractionScale = useMemo(
+    () => clamp(interactionScale || 1, 0.35, 1),
+    [interactionScale]
+  );
 
-  const avatarInteractionsEnabled = Boolean(filterBubbleId);
+  const normalizePoint = useCallback((x: number, y: number) => {
+    if (effectiveInteractionScale === 1) return { x, y };
+    return {
+      x: chartCenter.x + (x - chartCenter.x) / effectiveInteractionScale,
+      y: chartCenter.y + (y - chartCenter.y) / effectiveInteractionScale,
+    };
+  }, [chartCenter.x, chartCenter.y, effectiveInteractionScale]);
+
+  const normalizeDelta = useCallback((dx: number, dy: number) => {
+    if (effectiveInteractionScale === 1) return { dx, dy };
+    return {
+      dx: dx / effectiveInteractionScale,
+      dy: dy / effectiveInteractionScale,
+    };
+  }, [effectiveInteractionScale]);
+
+  const constrainCamera = useCallback((nextCamera: CameraState): CameraState => {
+    if (!enableInfiniteCanvas || !contentBounds) {
+      return { x: 0, y: 0 };
+    }
+    let x = nextCamera.x;
+    let y = nextCamera.y;
+
+    const minX = chartWidth / 2 - contentBounds.maxX - CANVAS_ROAM_PADDING;
+    const maxX = chartWidth / 2 - contentBounds.minX + CANVAS_ROAM_PADDING;
+    x = clamp(x, minX, maxX);
+
+    const minY = chartHeight / 2 - contentBounds.maxY - CANVAS_ROAM_PADDING;
+    const maxY = chartHeight / 2 - contentBounds.minY + CANVAS_ROAM_PADDING;
+    y = clamp(y, minY, maxY);
+
+    return { x, y };
+  }, [chartCenter.x, chartCenter.y, chartHeight, chartWidth, contentBounds, enableInfiniteCanvas]);
+
+  const getFocusTarget = useCallback((cameraState: CameraState) => {
+    if (!enableInfiniteCanvas || !focusableBubbles.length) {
+      focusTargetRef.current = null;
+      return null;
+    }
+
+    const closest = focusableBubbles.reduce((best, bubble) => {
+      const dx = chartCenter.x - (bubble.cx + cameraState.x);
+      const dy = chartCenter.y - (bubble.cy + cameraState.y);
+      const distance = Math.hypot(dx, dy);
+      if (!best || distance < best.distance) {
+        return { bubble, dx, dy, distance };
+      }
+      return best;
+    }, null as { bubble: RenderedBubble; dx: number; dy: number; distance: number } | null);
+
+    if (!closest) {
+      focusTargetRef.current = null;
+      return null;
+    }
+
+    const currentTargetId = focusTargetRef.current;
+    const currentTarget = currentTargetId
+      ? focusableBubbles.find(item => item.bubble.id === currentTargetId)
+      : null;
+
+    if (currentTarget) {
+      const currentDx = chartCenter.x - (currentTarget.cx + cameraState.x);
+      const currentDy = chartCenter.y - (currentTarget.cy + cameraState.y);
+      const currentDistance = Math.hypot(currentDx, currentDy);
+
+      if (
+        currentDistance <= FOCUS_ATTRACTION_RADIUS &&
+        currentDistance <= closest.distance + FOCUS_TARGET_STICKINESS
+      ) {
+        return {
+          bubble: currentTarget,
+          dx: currentDx,
+          dy: currentDy,
+          distance: currentDistance,
+        };
+      }
+    }
+
+    focusTargetRef.current = closest.bubble.bubble.id;
+    return closest;
+  }, [chartCenter.x, chartCenter.y, enableInfiniteCanvas, focusableBubbles]);
+
+  const updateFocusedBubble = useCallback((cameraState: CameraState) => {
+    const target = getFocusTarget(cameraState);
+    const nextFocusedBubble = target?.bubble.bubble.id ?? null;
+    if (!nextFocusedBubble) {
+      focusTargetRef.current = null;
+    } else {
+      focusTargetRef.current = nextFocusedBubble;
+    }
+    setFocusedBubbleId(prev => (prev === nextFocusedBubble ? prev : nextFocusedBubble));
+  }, [getFocusTarget]);
+
+  const getZoomScaleLimit = useCallback((cameraState: CameraState) => {
+    if (!enableInfiniteCanvas || !contentBounds || !chartWidth || !chartHeight) {
+      return 1;
+    }
+
+    const left = contentBounds.minX + cameraState.x;
+    const right = contentBounds.maxX + cameraState.x;
+    const top = contentBounds.minY + cameraState.y;
+    const bottom = contentBounds.maxY + cameraState.y;
+    const maxHorizontalDistance = Math.max(chartCenter.x - left, right - chartCenter.x);
+    const maxVerticalDistance = Math.max(chartCenter.y - top, bottom - chartCenter.y);
+
+    if (maxHorizontalDistance <= 0 || maxVerticalDistance <= 0) {
+      return 1;
+    }
+
+    const scaleX = (chartWidth / 2) / maxHorizontalDistance;
+    const scaleY = (chartHeight / 2) / maxVerticalDistance;
+
+    return clamp(Math.min(scaleX, scaleY) * 0.98, 0.35, 1);
+  }, [chartCenter.x, chartCenter.y, chartHeight, chartWidth, contentBounds, enableInfiniteCanvas]);
+
+  const lastZoomScaleLimitRef = useRef(1);
+  const emitZoomScaleLimit = useCallback((cameraState: CameraState) => {
+    if (!onZoomScaleLimitChange) return;
+    const nextScaleLimit = getZoomScaleLimit(cameraState);
+    if (Math.abs(lastZoomScaleLimitRef.current - nextScaleLimit) < 0.002) return;
+    lastZoomScaleLimitRef.current = nextScaleLimit;
+    onZoomScaleLimitChange(nextScaleLimit);
+  }, [getZoomScaleLimit, onZoomScaleLimitChange]);
+
+  useEffect(() => {
+    const syncCamera = () => {
+      cameraRef.current = {
+        x: cameraListenerRef.current.x,
+        y: cameraListenerRef.current.y,
+      };
+      updateFocusedBubble(cameraRef.current);
+      emitZoomScaleLimit(cameraRef.current);
+    };
+
+    const xListenerId = cameraAnim.x.addListener(({ value }) => {
+      cameraListenerRef.current.x = value;
+      syncCamera();
+    });
+    const yListenerId = cameraAnim.y.addListener(({ value }) => {
+      cameraListenerRef.current.y = value;
+      syncCamera();
+    });
+
+    return () => {
+      cameraAnim.x.removeListener(xListenerId);
+      cameraAnim.y.removeListener(yListenerId);
+    };
+  }, [cameraAnim, emitZoomScaleLimit, updateFocusedBubble]);
+
+  const applyFocusLock = useCallback((cameraState: CameraState, options?: { dragging?: boolean }): CameraState => {
+    if (!enableInfiniteCanvas) return cameraState;
+
+    const target = getFocusTarget(cameraState);
+    if (!target) {
+      return cameraState;
+    }
+
+    if (target.distance <= FOCUS_LOCK_HARD_RADIUS) {
+      return constrainCamera({
+        x: cameraState.x + target.dx,
+        y: cameraState.y + target.dy,
+      });
+    }
+
+    const attraction = clamp(1 - target.distance / FOCUS_ATTRACTION_RADIUS, 0, 1);
+    if (attraction <= 0) {
+      return constrainCamera(cameraState);
+    }
+
+    const magneticPull = smoothstep(attraction);
+    const lockPull = smoothstep(
+      1 - (target.distance - FOCUS_LOCK_HARD_RADIUS) / (FOCUS_LOCK_RADIUS - FOCUS_LOCK_HARD_RADIUS)
+    );
+    const strength = options?.dragging
+      ? 0.05 + magneticPull * 0.09 + lockPull * 0.18
+      : 0.08 + magneticPull * 0.14 + lockPull * 0.26;
+
+    return constrainCamera({
+      x: cameraState.x + target.dx * strength,
+      y: cameraState.y + target.dy * strength,
+    });
+  }, [constrainCamera, enableInfiniteCanvas, getFocusTarget]);
+
+  const applyCamera = useCallback((
+    nextCamera: CameraState,
+    options?: { dragging?: boolean; animated?: boolean; smoothing?: number }
+  ) => {
+    const lockedCamera = applyFocusLock(nextCamera, { dragging: options?.dragging });
+    const smoothing = options?.smoothing ?? 1;
+    const currentCamera = cameraRef.current;
+    const smoothedCamera = smoothing >= 1
+      ? lockedCamera
+      : {
+          x: currentCamera.x + (lockedCamera.x - currentCamera.x) * smoothing,
+          y: currentCamera.y + (lockedCamera.y - currentCamera.y) * smoothing,
+        };
+
+    cameraAnimationRef.current?.stop();
+    cameraAnimationRef.current = null;
+
+    if (options?.animated) {
+      const animation = Animated.spring(cameraAnim, {
+        toValue: smoothedCamera,
+        tension: CAMERA_RELEASE_SPRING_TENSION,
+        friction: CAMERA_RELEASE_SPRING_FRICTION,
+        useNativeDriver: false,
+      });
+      cameraAnimationRef.current = animation;
+      animation.start(() => {
+        cameraAnimationRef.current = null;
+      });
+      return;
+    }
+
+    cameraRef.current = smoothedCamera;
+    cameraListenerRef.current = smoothedCamera;
+    cameraAnim.setValue(smoothedCamera);
+    updateFocusedBubble(smoothedCamera);
+    emitZoomScaleLimit(smoothedCamera);
+  }, [applyFocusLock, cameraAnim, emitZoomScaleLimit, updateFocusedBubble]);
+
+  const settleCameraToFocus = useCallback(() => {
+    if (!enableInfiniteCanvas) return;
+    applyCamera(cameraRef.current, { animated: true });
+  }, [applyCamera, enableInfiniteCanvas]);
+
+  useEffect(() => {
+    if (!enableInfiniteCanvas || !contentBounds || !chartWidth || !chartHeight) {
+      applyCamera({ x: 0, y: 0 });
+      return;
+    }
+
+    applyCamera(constrainCamera({
+      x: chartWidth / 2 - contentBounds.centerX,
+      y: chartHeight / 2 - contentBounds.centerY,
+    }));
+  }, [applyCamera, chartHeight, chartWidth, constrainCamera, contentBounds, enableInfiniteCanvas]);
+
+  useEffect(() => {
+    emitZoomScaleLimit(cameraRef.current);
+  }, [emitZoomScaleLimit]);
+
+  useEffect(() => {
+    if (!enableInfiniteCanvas) {
+      return;
+    }
+  }, [enableInfiniteCanvas]);
 
   const trashRect = useMemo(() => ({
     left: (chartWidth - TRASH_SIZE) / 2,
@@ -256,48 +577,40 @@ export function BubbleChart({
   }), [chartHeight, chartWidth]);
 
   const resolveDragTarget = useCallback((source: DragSource, x: number, y: number): DragTarget | null => {
-    if (
-      x >= trashRect.left &&
-      x <= trashRect.right &&
-      y >= trashRect.top &&
-      y <= trashRect.bottom
-    ) {
+    if (x >= trashRect.left && x <= trashRect.right && y >= trashRect.top && y <= trashRect.bottom) {
       return { type: 'trash' };
     }
 
     if (source.type === 'bubble') {
       const match = renderedBubbles
-        .filter(item => !item.hiddenShell && !item.bubble.isNewBubbleTrigger && item.bubble.id !== source.bubbleId)
-        .find(item => Math.hypot(x - item.cx, y - item.cy) <= item.pxSize / 2);
-
-      return match
-        ? { type: 'bubble', bubbleId: match.bubble.id, centerX: match.cx, centerY: match.cy, size: match.pxSize }
-        : null;
+        .filter(item => !item.hiddenShell && item.bubble.id !== source.bubbleId)
+        .find(item => Math.hypot(x - (item.cx + cameraRef.current.x), y - (item.cy + cameraRef.current.y)) <= item.pxSize / 2);
+      if (!match) return null;
+      return { type: 'bubble', bubbleId: match.bubble.id, centerX: match.cx + cameraRef.current.x, centerY: match.cy + cameraRef.current.y, size: match.pxSize };
     }
 
     const bubbleHit = renderedBubbles
-      .filter(item => !item.hiddenShell && !item.bubble.isNewBubbleTrigger && item.bubble.id !== source.bubbleId)
-      .find(item => Math.hypot(x - item.cx, y - item.cy) <= item.pxSize / 2);
+      .filter(item => !item.hiddenShell && item.bubble.id !== source.bubbleId)
+      .find(item => Math.hypot(x - (item.cx + cameraRef.current.x), y - (item.cy + cameraRef.current.y)) <= item.pxSize / 2);
 
     if (bubbleHit) {
       return {
         type: 'bubble',
         bubbleId: bubbleHit.bubble.id,
-        centerX: bubbleHit.cx,
-        centerY: bubbleHit.cy,
+        centerX: bubbleHit.cx + cameraRef.current.x,
+        centerY: bubbleHit.cy + cameraRef.current.y,
         size: bubbleHit.pxSize,
       };
     }
 
-    if (!filterBubbleId || source.bubbleId !== filterBubbleId) {
-      return null;
-    }
+    if (!filterBubbleId || source.bubbleId !== filterBubbleId) return null;
 
     const avatarHit = renderedAvatars.find(item => {
       if (item.contactId === source.contactId || item.bubbleId !== filterBubbleId) return false;
-      const centerX = item.left + item.size / 2;
-      const centerY = item.top + item.size / 2;
-      return Math.hypot(x - centerX, y - centerY) <= item.size / 2;
+      return Math.hypot(
+        x - (item.left + item.size / 2 + cameraRef.current.x),
+        y - (item.top + item.size / 2 + cameraRef.current.y)
+      ) <= item.size / 2;
     });
 
     if (!avatarHit) return null;
@@ -306,8 +619,8 @@ export function BubbleChart({
       type: 'avatar',
       bubbleId: avatarHit.bubbleId,
       contactId: avatarHit.contactId,
-      centerX: avatarHit.left + avatarHit.size / 2,
-      centerY: avatarHit.top + avatarHit.size / 2,
+      centerX: avatarHit.left + avatarHit.size / 2 + cameraRef.current.x,
+      centerY: avatarHit.top + avatarHit.size / 2 + cameraRef.current.y,
       size: avatarHit.size,
     };
   }, [filterBubbleId, renderedAvatars, renderedBubbles, trashRect]);
@@ -338,30 +651,28 @@ export function BubbleChart({
     setPressingKey(null);
   }, []);
 
+  useEffect(() => {
+    if (!interactionPaused) return;
+    clearPendingPress();
+    isPanningRef.current = false;
+    dragSourceRef.current = null;
+    setDragState(null);
+  }, [clearPendingPress, interactionPaused]);
+
   const finishDrag = useCallback(async () => {
     const activeDrag = dragStateRef.current;
     dragSourceRef.current = null;
     setDragState(null);
-
     if (!activeDrag) return;
 
     let changed = false;
     if (activeDrag.source.type === 'bubble') {
-      if (activeDrag.target?.type === 'trash') {
-        changed = removeBubbleCategory(activeDrag.source.bubbleId);
-      } else if (activeDrag.target?.type === 'bubble') {
-        changed = nestBubbleIntoBubble(activeDrag.source.bubbleId, activeDrag.target.bubbleId);
-      }
+      if (activeDrag.target?.type === 'trash') changed = removeBubbleCategory(activeDrag.source.bubbleId);
+      else if (activeDrag.target?.type === 'bubble') changed = nestBubbleIntoBubble(activeDrag.source.bubbleId, activeDrag.target.bubbleId);
     } else {
-      if (activeDrag.target?.type === 'trash') {
-        changed = removeContactFromBubble(activeDrag.source.contactId, activeDrag.source.bubbleId);
-      } else if (activeDrag.target?.type === 'bubble') {
-        changed = moveContactToBubble(activeDrag.source.contactId, activeDrag.source.bubbleId, activeDrag.target.bubbleId);
-      } else if (
-        activeDrag.target?.type === 'avatar' &&
-        filterBubbleId &&
-        activeDrag.source.bubbleId === filterBubbleId
-      ) {
+      if (activeDrag.target?.type === 'trash') changed = removeContactFromBubble(activeDrag.source.contactId, activeDrag.source.bubbleId);
+      else if (activeDrag.target?.type === 'bubble') changed = moveContactToBubble(activeDrag.source.contactId, activeDrag.source.bubbleId, activeDrag.target.bubbleId);
+      else if (activeDrag.target?.type === 'avatar' && filterBubbleId && activeDrag.source.bubbleId === filterBubbleId) {
         const sourceContact = getContact(activeDrag.source.contactId);
         const targetContact = getContact(activeDrag.target.contactId);
         onCreateBubbleRequest?.({
@@ -376,20 +687,12 @@ export function BubbleChart({
     if (changed) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     }
-  }, [
-    filterBubbleId,
-    getContact,
-    moveContactToBubble,
-    nestBubbleIntoBubble,
-    onCreateBubbleRequest,
-    removeBubbleCategory,
-    removeContactFromBubble,
-  ]);
+  }, [filterBubbleId, getContact, moveContactToBubble, nestBubbleIntoBubble, onCreateBubbleRequest, removeBubbleCategory, removeContactFromBubble]);
 
   const hitTestSource = useCallback((x: number, y: number): HitSource | null => {
-      const bubbleHit = renderedBubbles
-      .filter(item => !item.hiddenShell && !item.bubble.isNewBubbleTrigger)
-      .find(item => Math.hypot(x - item.cx, y - item.cy) <= item.pxSize / 2);
+    const bubbleHit = renderedBubbles
+      .filter(item => !item.hiddenShell)
+      .find(item => Math.hypot(x - (item.cx + cameraRef.current.x), y - (item.cy + cameraRef.current.y)) <= item.pxSize / 2);
 
     if (bubbleHit) {
       return {
@@ -407,10 +710,12 @@ export function BubbleChart({
       };
     }
 
-    const avatarHit = renderedAvatars.find(item => (
-      Math.hypot(x - (item.left + item.size / 2), y - (item.top + item.size / 2)) <= item.size / 2
-    ));
-
+    const avatarHit = renderedAvatars.find(item => {
+      return Math.hypot(
+        x - (item.left + item.size / 2 + cameraRef.current.x),
+        y - (item.top + item.size / 2 + cameraRef.current.y)
+      ) <= item.size / 2;
+    });
     if (!avatarHit) return null;
 
     return {
@@ -427,84 +732,122 @@ export function BubbleChart({
     };
   }, [onAvatarTap, onBubbleTap, renderedAvatars, renderedBubbles]);
 
+  const updatePan = useCallback((gestureState: PanResponderGestureState) => {
+    if (!enableInfiniteCanvas) return;
+    isPanningRef.current = true;
+    const start = gestureStartCameraRef.current;
+    const delta = normalizeDelta(gestureState.dx, gestureState.dy);
+    applyCamera(constrainCamera({
+      x: start.x + delta.dx,
+      y: start.y + delta.dy,
+    }), {
+      dragging: true,
+      smoothing: CAMERA_DRAG_SMOOTHING,
+    });
+  }, [applyCamera, constrainCamera, enableInfiniteCanvas, normalizeDelta]);
+
   const chartResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: event => Boolean(
-      hitTestSource(event.nativeEvent.locationX, event.nativeEvent.locationY)
+    onStartShouldSetPanResponder: event => {
+      if (interactionPaused) return false;
+      const point = normalizePoint(event.nativeEvent.locationX, event.nativeEvent.locationY);
+      return enableInfiniteCanvas || Boolean(hitTestSource(point.x, point.y));
+    },
+    onMoveShouldSetPanResponder: (_, gestureState) => (
+      !interactionPaused && enableInfiniteCanvas
+        ? Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2
+        : false
     ),
-    onMoveShouldSetPanResponder: () => false,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: event => {
-      const hit = hitTestSource(event.nativeEvent.locationX, event.nativeEvent.locationY);
-      if (!hit) return;
+      if (interactionPaused) return;
+      gestureStartCameraRef.current = cameraRef.current;
+      isPanningRef.current = false;
+      const point = normalizePoint(event.nativeEvent.locationX, event.nativeEvent.locationY);
+      pressPointRef.current = point;
 
+      const hit = hitTestSource(point.x, point.y);
+      if (!hit) {
+        pendingHitRef.current = null;
+        return;
+      }
       pendingHitRef.current = hit;
-      pressPointRef.current = {
-        x: event.nativeEvent.locationX,
-        y: event.nativeEvent.locationY,
-      };
       setPressingKey(hit.key);
 
-      const dragEnabled = hit.source.type === 'bubble'
-        ? hit.source.bubbleId !== '__new-bubble__'
-        : avatarInteractionsEnabled;
+      const dragEnabled = hit.source.type === 'bubble' ? true : avatarInteractionsEnabled;
       if (!dragEnabled) return;
 
-      const startX = event.nativeEvent.locationX;
-      const startY = event.nativeEvent.locationY;
+      const startX = point.x;
+      const startY = point.y;
       dragTimerRef.current = setTimeout(() => {
         dragTimerRef.current = null;
         setPressingKey(null);
         startDrag(hit.source, startX, startY);
       }, LONG_PRESS_MS);
     },
-    onPanResponderMove: event => {
+    onPanResponderMove: (event, gestureState) => {
+      if (interactionPaused) return;
+      const point = normalizePoint(event.nativeEvent.locationX, event.nativeEvent.locationY);
       if (dragStateRef.current) {
-        updateDrag(event.nativeEvent.locationX, event.nativeEvent.locationY);
+        updateDrag(point.x, point.y);
         return;
       }
 
-      if (!dragTimerRef.current) return;
-      const hit = pendingHitRef.current;
       const pressPoint = pressPointRef.current;
-      if (!hit) return;
-      if (!pressPoint) return;
-      const moved = Math.hypot(
-        event.nativeEvent.locationX - pressPoint.x,
-        event.nativeEvent.locationY - pressPoint.y
-      );
-      if (moved > MOVE_CANCEL_THRESHOLD) {
+      const moved = pressPoint
+        ? Math.hypot(point.x - pressPoint.x, point.y - pressPoint.y)
+        : 0;
+
+      if (dragTimerRef.current && moved > MOVE_CANCEL_THRESHOLD) {
         clearPendingPress();
+      }
+
+      if (enableInfiniteCanvas && moved > MOVE_CANCEL_THRESHOLD) {
+        updatePan(gestureState);
       }
     },
     onPanResponderRelease: async event => {
+      if (interactionPaused) return;
+      const point = normalizePoint(event.nativeEvent.locationX, event.nativeEvent.locationY);
       const hadDrag = Boolean(dragStateRef.current);
       const pendingHit = pendingHitRef.current;
       const pressPoint = pressPointRef.current;
-      const moved = pendingHit
-        && pressPoint
-        ? Math.hypot(
-            event.nativeEvent.locationX - pressPoint.x,
-            event.nativeEvent.locationY - pressPoint.y
-          )
+      const wasPanning = isPanningRef.current;
+      const moved = pendingHit && pressPoint
+        ? Math.hypot(point.x - pressPoint.x, point.y - pressPoint.y)
         : Infinity;
-
+      isPanningRef.current = false;
       clearPendingPress();
-
       if (hadDrag) {
         await finishDrag();
         return;
       }
-
-      if (pendingHit && moved <= MOVE_CANCEL_THRESHOLD) {
-        pendingHit.onTap();
+      if (enableInfiniteCanvas && wasPanning) {
+        settleCameraToFocus();
       }
+      if (!wasPanning && pendingHit && moved <= MOVE_CANCEL_THRESHOLD) pendingHit.onTap();
     },
     onPanResponderTerminate: () => {
       clearPendingPress();
+      isPanningRef.current = false;
       dragSourceRef.current = null;
       setDragState(null);
+      if (enableInfiniteCanvas) {
+        settleCameraToFocus();
+      }
     },
-  }), [avatarInteractionsEnabled, clearPendingPress, finishDrag, hitTestSource, startDrag, updateDrag]);
+  }), [
+    avatarInteractionsEnabled,
+    clearPendingPress,
+    enableInfiniteCanvas,
+    finishDrag,
+    hitTestSource,
+    interactionPaused,
+    normalizePoint,
+    settleCameraToFocus,
+    startDrag,
+    updateDrag,
+    updatePan,
+  ]);
 
   const dragBridgeStyle = useMemo(() => {
     if (!dragState?.target || dragState.target.type === 'trash') return null;
@@ -513,16 +856,12 @@ export function BubbleChart({
     const distance = Math.hypot(dx, dy);
     const angle = Math.atan2(dy, dx);
     const thickness = Math.max(20, Math.min(dragState.source.size, dragState.target.size) * 0.46);
-
     return {
       width: distance,
       height: thickness,
       left: dragState.x,
       top: dragState.y - thickness / 2,
-      transform: [
-        { translateX: 0 },
-        { rotate: `${angle}rad` },
-      ],
+      transform: [{ translateX: 0 }, { rotate: `${angle}rad` }],
     };
   }, [dragState]);
 
@@ -531,62 +870,102 @@ export function BubbleChart({
     pxSize: number,
     style?: ViewStyle,
     options?: { highlighted?: boolean; dragging?: boolean; pressed?: boolean }
-  ) => (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.bubble,
-        bubble.parentId ? styles.bubbleSub : null,
-        pxSize <= 88 ? styles.bubbleSmall : null,
-        options?.highlighted ? styles.bubbleHighlighted : null,
-        options?.dragging ? styles.bubbleDragging : null,
-        options?.pressed ? styles.bubblePressed : null,
-        {
-          width: pxSize,
-          height: pxSize,
-          borderRadius: pxSize / 2,
-        },
-        style,
-      ]}
-    >
-      <BlurView
-        intensity={60}
-        tint="light"
-        style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
-      />
-      <LinearGradient
-        colors={[
-          'rgba(255,255,255,0.26)',
-          'rgba(255,255,255,0.08)',
-          'rgba(103,118,145,0.16)',
-        ]}
-        start={{ x: 0.12, y: 0.08 }}
-        end={{ x: 0.84, y: 0.92 }}
-        style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
-      />
+  ) => {
+    const isNeutralTrigger = Boolean(bubble.isNewBubbleTrigger);
+    const palette = getBubblePalette(bubble.colorKey);
+
+    const c0 = isNeutralTrigger ? '#C8C4BB' : palette.colors[0];
+    const c1 = isNeutralTrigger ? '#E8E4DC' : palette.colors[1];
+
+    return (
       <View
+        pointerEvents="none"
         style={[
-          styles.bubbleHighlight,
-          {
-            width: pxSize * 0.52,
-            height: pxSize * 0.34,
-            borderRadius: pxSize * 0.26,
-          },
+          styles.bubble,
+          bubble.parentId ? styles.bubbleSub : null,
+          pxSize <= 88 ? styles.bubbleSmall : null,
+          options?.highlighted ? styles.bubbleHighlighted : null,
+          options?.dragging ? styles.bubbleDragging : null,
+          options?.pressed ? styles.bubblePressed : null,
+          { width: pxSize, height: pxSize, borderRadius: pxSize / 2 },
+          style,
         ]}
-      />
-      <Text
-        style={[
-          styles.bubbleLabel,
-          pxSize <= 88 ? styles.bubbleLabelSmall : null,
-        ]}
-        numberOfLines={2}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
       >
-        {bubble.label.replace(/\n/g, '\n')}
-      </Text>
-    </View>
-  ), []);
+        {/* Base fill — lighter at top, richer at bottom */}
+        <LinearGradient
+          colors={[c1, c0]}
+          start={{ x: 0.3, y: 0 }}
+          end={{ x: 0.7, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Horizontal rim darkening — sphere-depth at left/right edges */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.18)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.14)']}
+          locations={[0, 0.22, 0.78, 1]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Bottom rim darkening */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']}
+          locations={[0, 0.48, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Soft upper-hemisphere diffuse highlight */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.35, 0.6, 1]}
+          start={{ x: 0.28, y: 0 }}
+          end={{ x: 0.58, y: 0.72 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Iridescent diagonal sheen */}
+        <LinearGradient
+          colors={['rgba(200,230,255,0.16)', 'rgba(255,200,220,0.09)', 'rgba(210,255,230,0.06)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.34, 0.67, 1]}
+          start={{ x: 0, y: 0.08 }}
+          end={{ x: 1, y: 0.92 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Specular arc — start point sits outside the circle boundary so only the
+            arc slice just inside the rim is at peak brightness; the gradient fades
+            to zero before crossing the bubble equator, leaving every visible edge
+            as a smooth gradient fade rather than a hard clip. */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.62)', 'rgba(255,255,255,0.26)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.28, 0.56]}
+          start={{ x: 0.18, y: 0 }}
+          end={{ x: 0.50, y: 0.56 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        {/* Bottom fill light — reflected ground light */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.11)']}
+          start={{ x: 0.5, y: 0.6 }}
+          end={{ x: 0.5, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: pxSize / 2 }]}
+        />
+
+        <Text
+          style={[styles.bubbleLabel, pxSize <= 88 ? styles.bubbleLabelSmall : null]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {bubble.label.replace(/\n/g, '\n')}
+        </Text>
+      </View>
+    );
+  }, []);
 
   if (!chartWidth || !chartHeight) return null;
 
@@ -594,152 +973,182 @@ export function BubbleChart({
     <View style={[styles.chart, { width: chartWidth, height: chartHeight }]} {...chartResponder.panHandlers}>
       <View style={styles.bgGlow} pointerEvents="none" />
 
-      {renderedAvatars.map((av, idx) => {
-        const contact = getContact(av.contactId);
-        if (!contact) return null;
-
-        const dragKey = `avatar-${av.bubbleId}-${av.contactId}`;
-
-        const isSource =
-          dragState?.source.type === 'contact' &&
-          dragState.source.contactId === av.contactId &&
-          dragState.source.bubbleId === av.bubbleId;
-        const isMergeTarget =
-          dragState?.target?.type === 'avatar' &&
-          dragState.target.contactId === av.contactId &&
-          dragState.target.bubbleId === av.bubbleId;
-
-        return (
-          <View
-            key={`${av.bubbleId}-${av.contactId}-${idx}`}
-            style={{
-              position: 'absolute',
-              left: av.left,
-              top: av.top,
-              width: av.size,
-              height: av.size,
-              zIndex: isMergeTarget ? 7 : 4,
-              opacity: isSource ? 0.18 : 1,
-              transform: [{ scale: pressingKey === dragKey ? 0.94 : isMergeTarget ? 1.1 : 1 }],
-            }}
-            pointerEvents="none"
-          >
-            <Avatar
-              name={contact.name}
-              color={contact.color}
-              image={contact.image}
-              size={av.size}
-              showBorder
-              style={isMergeTarget ? styles.avatarDropTarget : undefined}
-            />
+      {enableInfiniteCanvas ? (
+        <View pointerEvents="none" style={[styles.canvasHint, { top: headerInset + 10 }]}>
+          <View style={styles.canvasHintShadow}>
+            <View style={styles.canvasHintPill}>
+              <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFillObject} />
+              <LinearGradient
+                colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.10)']}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <LinearGradient
+                colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0)']}
+                style={styles.canvasHintSpecular}
+              />
+              <Text style={styles.canvasHintText}>Drag to explore. Pinch to zoom.</Text>
+            </View>
           </View>
-        );
-      })}
+        </View>
+      ) : null}
 
-      {renderedBubbles.map(({ bubble, left, top, pxSize, hiddenShell }) => {
-        if (hiddenShell) return null;
-
-        const dragKey = `bubble-${bubble.id}`;
-
-        const isSource = dragState?.source.type === 'bubble' && dragState.source.bubbleId === bubble.id;
-        const isTarget = dragState?.target?.type === 'bubble' && dragState.target.bubbleId === bubble.id;
-        const isTrigger = Boolean(bubble.isNewBubbleTrigger);
-
-        return (
-          <View
-            key={bubble.id}
-            style={{
-              position: 'absolute',
-              left,
-              top,
-              width: pxSize,
-              height: pxSize,
-              zIndex: isTarget ? 8 : bubble.parentId ? 7 : 6,
-              opacity: isSource ? 0.2 : 1,
-              transform: [{ scale: pressingKey === dragKey ? 0.97 : isTarget ? 1.06 : 1 }],
-            }}
-            pointerEvents={isTrigger ? 'box-none' : 'none'}
-          >
-            {isTrigger ? (
-              <TouchableOpacity
-                style={styles.addBubbleWrap}
-                onPress={onAddBubbleTap}
-                activeOpacity={0.82}
-              >
-                {renderBubbleShell(
-                  bubble,
-                  pxSize,
-                  undefined,
-                  { pressed: pressingKey === dragKey }
-                )}
-                <View style={styles.addBubbleIcon}>
-                  <PlusIcon size={Math.max(18, pxSize * 0.48)} color={Colors.text} />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              renderBubbleShell(bubble, pxSize, undefined, {
-                highlighted: isTarget,
-                pressed: pressingKey === dragKey,
-              })
-            )}
-          </View>
-        );
-      })}
-
-      {dragBridgeStyle ? (
-        <View
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.zoomLayer,
+          {
+            transform: [{ scale: visualScale }],
+          },
+        ]}
+      >
+        <Animated.View
           pointerEvents="none"
           style={[
-            styles.mergeBridge,
-            dragBridgeStyle,
+            styles.canvasLayer,
+            {
+              width: layoutWidth,
+              height: layoutHeight,
+              transform: cameraAnim.getTranslateTransform(),
+            },
           ]}
-        />
-      ) : null}
+        >
+          {renderedAvatars.map((av, idx) => {
+          const contact = getContact(av.contactId);
+          if (!contact) return null;
+          const dragKey = `avatar-${av.bubbleId}-${av.contactId}`;
+          const isSource = dragState?.source.type === 'contact' && dragState.source.contactId === av.contactId && dragState.source.bubbleId === av.bubbleId;
+          const isMergeTarget = dragState?.target?.type === 'avatar' && dragState.target.contactId === av.contactId && dragState.target.bubbleId === av.bubbleId;
+
+          return (
+            <View
+              key={`${av.bubbleId}-${av.contactId}-${idx}`}
+              style={{
+                position: 'absolute',
+                left: av.left,
+                top: av.top,
+                width: av.size,
+                height: av.size,
+                zIndex: isMergeTarget ? 7 : 4,
+                opacity: isSource ? 0.18 : 1,
+                transform: [{ scale: pressingKey === dragKey ? 0.94 : isMergeTarget ? 1.1 : 1 }],
+              }}
+              pointerEvents="none"
+            >
+              <Avatar
+                name={contact.name}
+                color={contact.color}
+                image={contact.image}
+                size={av.size}
+                showBorder
+                style={isMergeTarget ? styles.avatarDropTarget : undefined}
+              />
+            </View>
+          );
+          })}
+
+          {renderedBubbles.map(({ bubble, left, top, pxSize, hiddenShell, cx, cy }) => {
+          if (hiddenShell) return null;
+          const dragKey = `bubble-${bubble.id}`;
+          const isSource = dragState?.source.type === 'bubble' && dragState.source.bubbleId === bubble.id;
+          const isTarget = dragState?.target?.type === 'bubble' && dragState.target.bubbleId === bubble.id;
+          const isFocused = bubble.id === focusedBubbleId;
+          const palette = getBubblePalette(bubble.colorKey);
+
+          return (
+            <View
+              key={bubble.id}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                width: pxSize,
+                height: pxSize,
+                zIndex: isTarget ? 8 : bubble.parentId ? 7 : 6,
+                opacity: isSource ? 0.2 : 1,
+              }}
+              pointerEvents="none"
+            >
+              {isFocused ? (
+                <>
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      width: pxSize * 1.60,
+                      height: pxSize * 1.60,
+                      borderRadius: pxSize * 0.80,
+                      left: -(pxSize * 0.30),
+                      top: -(pxSize * 0.30),
+                      backgroundColor: palette.colors[0],
+                      opacity: 0.10,
+                    }}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      width: pxSize * 1.26,
+                      height: pxSize * 1.26,
+                      borderRadius: pxSize * 0.63,
+                      left: -(pxSize * 0.13),
+                      top: -(pxSize * 0.13),
+                      backgroundColor: palette.colors[0],
+                      opacity: 0.18,
+                    }}
+                  />
+                </>
+              ) : null}
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: pxSize,
+                  height: pxSize,
+                  transform: [{ scale: pressingKey === dragKey ? 0.96 : isTarget ? 1.06 : 1 }],
+                }}
+                pointerEvents="none"
+              >
+                {renderBubbleShell(bubble, pxSize, undefined, {
+                  highlighted: isTarget,
+                  pressed: pressingKey === dragKey,
+                })}
+              </View>
+            </View>
+          );
+          })}
+        </Animated.View>
+      </Animated.View>
+
+      {dragBridgeStyle ? <View pointerEvents="none" style={[styles.mergeBridge, dragBridgeStyle]} /> : null}
 
       {dragState ? (
         <Animated.View
           pointerEvents="none"
-          style={[
-            styles.dragGhost,
-            {
-              width: dragState.source.size,
-              height: dragState.source.size,
-              transform: dragAnim.getTranslateTransform(),
-            },
-          ]}
+          style={[styles.dragGhost, { width: dragState.source.size, height: dragState.source.size, transform: dragAnim.getTranslateTransform() }]}
         >
-          {dragState.source.type === 'contact' ? (
-            (() => {
-              const contact = getContact(dragState.source.contactId);
-              if (!contact) return null;
-              return (
-                <Avatar
-                  name={contact.name}
-                  color={contact.color}
-                  image={contact.image}
-                  size={dragState.source.size}
-                  showBorder
-                  style={styles.dragAvatar}
-                />
-              );
-            })()
-          ) : (
-            renderBubbleShell(
-              bubbleMap.get(dragState.source.bubbleId)?.bubble || {
-                id: dragState.source.bubbleId,
-                label: dragState.source.label,
-                x: 0,
-                y: 0,
-                size: 0,
-                contactIds: [],
-                subBubbleIds: [],
-                parentId: dragState.source.parentId,
-              },
-              dragState.source.size,
-              undefined,
-              { dragging: true }
-            )
-          )}
+          {dragState.source.type === 'contact'
+            ? (() => {
+                const contact = getContact(dragState.source.contactId);
+                if (!contact) return null;
+                return <Avatar name={contact.name} color={contact.color} image={contact.image} size={dragState.source.size} showBorder style={styles.dragAvatar} />;
+              })()
+            : renderBubbleShell(
+                bubbleMap.get(dragState.source.bubbleId)?.bubble || {
+                  id: dragState.source.bubbleId,
+                  label: dragState.source.label,
+                  x: 0,
+                  y: 0,
+                  size: 0,
+                  colorKey: 'violet',
+                  contactIds: [],
+                  subBubbleIds: [],
+                  parentId: dragState.source.parentId,
+                },
+                dragState.source.size,
+                undefined,
+                { dragging: true }
+              )}
         </Animated.View>
       ) : null}
 
@@ -767,6 +1176,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  zoomLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  canvasLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
   bgGlow: {
     position: 'absolute',
     top: 0,
@@ -777,10 +1194,46 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 24,
     backgroundColor: 'transparent',
-    shadowColor: 'rgba(108, 130, 216, 0.13)',
+    shadowColor: 'rgba(154, 137, 222, 0.16)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 80,
+  },
+  canvasHint: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 18,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  canvasHintShadow: {
+    shadowColor: '#5A5040',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  canvasHintPill: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  canvasHintSpecular: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 3,
+  },
+  canvasHintText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   bubble: {
     position: 'absolute',
@@ -788,32 +1241,18 @@ const styles = StyleSheet.create({
     left: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
-    overflow: 'hidden',
     ...Shadows.bubble,
   },
-  bubbleSub: {
-    borderColor: 'rgba(255,255,255,0.46)',
-  },
-  bubbleSmall: {
-    borderColor: 'rgba(255,255,255,0.44)',
-  },
-  bubbleHighlight: {
-    position: 'absolute',
-    top: '11%',
-    left: '15%',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    opacity: 0.9,
-  },
+  bubbleSub: {},
+  bubbleSmall: {},
   bubbleLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
+    fontWeight: '700',
+    color: Colors.inverseText,
     textAlign: 'center',
     letterSpacing: -0.2,
     paddingHorizontal: 6,
-    textShadowColor: 'rgba(0,0,0,0.28)',
+    textShadowColor: 'rgba(30,34,52,0.18)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -822,36 +1261,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   bubbleHighlighted: {
-    borderColor: 'rgba(163, 215, 255, 0.95)',
-    shadowColor: '#94deff',
-    shadowOpacity: 0.34,
+    shadowColor: '#b9a8ff',
+    shadowOpacity: 0.28,
     shadowRadius: 26,
     elevation: 12,
   },
   bubbleDragging: {
-    borderColor: 'rgba(190, 231, 255, 0.9)',
     shadowOpacity: 0.38,
   },
-  bubblePressed: {
-    borderColor: 'rgba(255,255,255,0.72)',
-  },
-  addBubbleWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-  },
-  addBubbleIcon: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  bubblePressed: {},
   avatarDropTarget: {
-    borderColor: 'rgba(169, 231, 255, 0.96)',
+    borderColor: '#ffffff',
     borderWidth: 2.5,
-    shadowColor: '#9be2ff',
-    shadowOpacity: 0.45,
+    shadowColor: '#b9a8ff',
+    shadowOpacity: 0.24,
     shadowRadius: 18,
     elevation: 10,
   },
@@ -869,10 +1292,10 @@ const styles = StyleSheet.create({
   mergeBridge: {
     position: 'absolute',
     zIndex: 5,
-    backgroundColor: 'rgba(178, 232, 255, 0.34)',
+    backgroundColor: 'rgba(148, 131, 255, 0.22)',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(220, 248, 255, 0.3)',
+    borderColor: 'rgba(255,255,255,0.36)',
   },
   trashDrop: {
     position: 'absolute',
@@ -881,16 +1304,17 @@ const styles = StyleSheet.create({
     borderRadius: TRASH_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(47, 54, 73, 0.72)',
+    backgroundColor: 'rgba(255, 253, 248, 0.96)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
+    borderColor: Colors.strokeStrong,
     zIndex: 18,
+    ...Shadows.card,
   },
   trashDropActive: {
-    backgroundColor: 'rgba(206, 78, 88, 0.88)',
-    borderColor: 'rgba(255, 214, 217, 0.9)',
-    shadowColor: '#ff6e7f',
-    shadowOpacity: 0.42,
+    backgroundColor: '#F6D9D5',
+    borderColor: '#E8AAA0',
+    shadowColor: '#F0B0A8',
+    shadowOpacity: 0.22,
     shadowRadius: 16,
     elevation: 10,
   },

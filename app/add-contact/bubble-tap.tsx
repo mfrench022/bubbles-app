@@ -3,13 +3,16 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Share, Platform }
 import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store';
 import { USER_PROFILE } from '../../src/data/user';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { Avatar } from '../../src/components/Avatar';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { Colors, Radius, Spacing } from '../../src/theme';
 
 export default function BubbleTapScreen() {
   const router = useRouter();
   const bubbles = useStore(s => s.bubbles);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
   const [status, setStatus] = useState('Ready to share your Bubble Tap profile.');
 
   const topLevelLabels = bubbles
@@ -43,7 +46,11 @@ export default function BubbleTapScreen() {
     <View style={styles.screen}>
       <Header title="Bubble Tap" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.halo}>
           <View style={styles.pulse1} />
           <View style={styles.pulse2} />
@@ -101,20 +108,20 @@ const styles = StyleSheet.create({
   },
   pulse1: {
     position: 'absolute', width: 160, height: 160, borderRadius: 80,
-    borderWidth: 1.5, borderColor: 'rgba(115, 132, 198, 0.25)',
+    borderWidth: 1.5, borderColor: '#D9D0FF',
   },
   pulse2: {
     position: 'absolute', width: 130, height: 130, borderRadius: 65,
-    borderWidth: 1.5, borderColor: 'rgba(115, 132, 198, 0.18)',
+    borderWidth: 1.5, borderColor: '#E7E0FF',
   },
   profileCircle: {
     width: 100, height: 100, borderRadius: 50,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(115, 132, 198, 0.4)',
+    borderWidth: 2, borderColor: Colors.primarySolid,
   },
   panel: {
     alignItems: 'center', gap: 6, width: '100%',
-    backgroundColor: 'rgba(17,22,51,0.74)', borderRadius: Radius.xl,
+    backgroundColor: Colors.cardBg, borderRadius: Radius.xl,
     borderWidth: 1, borderColor: Colors.stroke, padding: Spacing.xl,
   },
   eyebrow: { fontSize: 12, color: Colors.textMuted, letterSpacing: 0.8, textTransform: 'uppercase' },
@@ -123,22 +130,22 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 8 },
   chip: {
     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999,
-    backgroundColor: 'rgba(12,15,35,0.6)', borderWidth: 1, borderColor: Colors.stroke,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
   chipText: { fontSize: 13, color: Colors.textMuted },
   namedropNote: {
     width: '100%', padding: Spacing.lg, borderRadius: Radius.lg,
-    backgroundColor: 'rgba(10,13,32,0.7)', borderWidth: 1, borderColor: Colors.stroke, gap: 6,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder, gap: 6,
   },
   namedropTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
   namedropText: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
   actions: { flexDirection: 'row', gap: 8, width: '100%' },
   actionBtn: {
     flex: 1, height: 52, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(17,22,51,0.74)', borderWidth: 1, borderColor: Colors.stroke,
+    backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
-  actionBtnPrimary: { backgroundColor: Colors.toggleActive, borderColor: 'rgba(115,132,198,0.5)' },
+  actionBtnPrimary: { backgroundColor: Colors.primarySolid, borderColor: Colors.primarySolid },
   actionBtnText: { fontSize: 16, fontWeight: '500', color: Colors.text },
-  actionBtnPrimaryText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  actionBtnPrimaryText: { fontSize: 16, fontWeight: '600', color: Colors.inverseText },
   status: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
 });

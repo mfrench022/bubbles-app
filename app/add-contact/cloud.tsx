@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { Colors, Radius, Spacing } from '../../src/theme';
 
 const PLATFORMS = [
@@ -14,12 +15,17 @@ const PLATFORMS = [
 export default function ImportCloudScreen() {
   const router = useRouter();
   const [selected, setSelected] = useState('google');
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   return (
     <View style={styles.screen}>
       <Header title="Import Contacts" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
+      >
         <Text style={styles.intro}>
           Choose a platform to import your contacts. You'll be taken through your phone's system authorization flow.
         </Text>

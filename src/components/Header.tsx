@@ -1,13 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  FlatList, ViewStyle, Platform,
+  FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../store';
-import { Colors, Radius, Spacing } from '../theme';
+import { Colors, Radius, Shadows, Typography } from '../theme';
 import { SearchIcon, BackChevronIcon, BackIcon, CloseIcon } from './Icons';
 import { Avatar } from './Avatar';
+import { GlassIconButton } from './GlassIconButton';
 
 interface HeaderProps {
   title: string;
@@ -19,6 +22,16 @@ interface HeaderProps {
   rightSlot?: React.ReactNode;
   centerTitle?: boolean;
   leftSlot?: React.ReactNode;
+}
+
+export const HEADER_ROW_HEIGHT = 46;
+export const HEADER_BOTTOM_GAP = 8;
+export const HEADER_HORIZONTAL_PADDING = 17;
+
+export function useHeaderInset() {
+  const insets = useSafeAreaInsets();
+  const topPad = Math.max(36, insets.top + 10);
+  return topPad + HEADER_ROW_HEIGHT + HEADER_BOTTOM_GAP;
 }
 
 export function Header({
@@ -64,6 +77,12 @@ export function Header({
 
   return (
     <View style={[styles.container, { paddingTop: topPad, minHeight }]}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']}
+        locations={[0, 0.38, 1]}
+        style={styles.headerFeather}
+      />
       {searchOpen ? (
         <View style={styles.searchBar}>
           <TouchableOpacity onPress={closeSearch} style={styles.searchBackBtn}>
@@ -91,34 +110,46 @@ export function Header({
               <View style={styles.leftSlot}>{leftSlot}</View>
             ) : showBack ? (
               backStyle === 'arrow' ? (
-                <TouchableOpacity onPress={onBack} style={styles.backArrow} activeOpacity={0.7}>
+                <GlassIconButton onPress={onBack}>
                   <BackChevronIcon size={20} />
-                </TouchableOpacity>
+                </GlassIconButton>
               ) : (
-                <TouchableOpacity onPress={onBack} style={styles.backPill} activeOpacity={0.7}>
+                <GlassIconButton onPress={onBack}>
                   <BackIcon size={20} />
-                </TouchableOpacity>
+                </GlassIconButton>
               )
             ) : null}
           </View>
 
           <View style={styles.titleWrap}>
-            <Text
-              style={[
-                styles.title,
-                centerTitle && styles.titleCenter,
-              ]}
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
+            <View style={styles.titlePillShadow}>
+              <View style={styles.titlePillInner}>
+                <BlurView pointerEvents="none" intensity={70} tint="light" style={StyleSheet.absoluteFillObject} />
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.10)']}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0)']}
+                  style={styles.titlePillSpecular}
+                />
+                <Text
+                  style={[styles.title, centerTitle && styles.titleCenter]}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <View style={[styles.sideRail, styles.sideRailRight]}>
             {showSearch ? (
-              <TouchableOpacity onPress={openSearch} style={styles.iconBtn} activeOpacity={0.7}>
-                <SearchIcon size={22} />
-              </TouchableOpacity>
+              <GlassIconButton onPress={openSearch}>
+                <SearchIcon size={22} color={Colors.textMuted} />
+              </GlassIconButton>
             ) : rightSlot ? (
               <View style={styles.rightSlot}>{rightSlot}</View>
             ) : null}
@@ -163,11 +194,20 @@ export function Header({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'relative',
-    zIndex: 20,
-    flexShrink: 0,
-    paddingHorizontal: 17,
-    paddingBottom: 0,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    paddingHorizontal: HEADER_HORIZONTAL_PADDING,
+    paddingBottom: HEADER_BOTTOM_GAP,
+  },
+  headerFeather: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 88,
   },
   row: {
     flexDirection: 'row',
@@ -175,7 +215,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
   },
   sideRail: {
-    width: 104,
+    width: 110,
     minHeight: 46,
     justifyContent: 'center',
   },
@@ -188,12 +228,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 46,
   },
+  titlePillShadow: {
+    alignSelf: 'center',
+    shadowColor: '#5A5040',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  titlePillInner: {
+    overflow: 'hidden',
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  titlePillSpecular: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 3,
+    borderTopLeftRadius: Radius.full,
+    borderTopRightRadius: Radius.full,
+  },
   title: {
-    fontSize: 33,
-    fontWeight: '600',
-    letterSpacing: -1.3,
+    ...Typography.title,
     lineHeight: 38,
-    color: Colors.text,
     textAlign: 'center',
   },
   titleCenter: {
@@ -209,76 +272,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  iconBtn: {
-    width: 46,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    borderRadius: 23,
-    backgroundColor: Colors.iconBtn,
-    borderWidth: 1,
-    borderColor: Colors.iconBtnBorder,
-  },
-  backArrow: {
-    width: 46,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    borderRadius: 23,
-    backgroundColor: Colors.iconBtn,
-    borderWidth: 1,
-    borderColor: Colors.iconBtnBorder,
-  },
-  backPill: {
-    width: 46,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    borderRadius: 23,
-    backgroundColor: Colors.iconBtn,
-    borderWidth: 1,
-    borderColor: Colors.iconBtnBorder,
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 46,
-    borderRadius: 999,
+    height: 52,
+    borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
     backgroundColor: Colors.inputBg,
     overflow: 'hidden',
+    ...Shadows.card,
   },
   searchBackBtn: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
-    height: 46,
+    height: 52,
     color: Colors.text,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '500',
   },
   searchClear: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchResults: {
     marginTop: 8,
     borderRadius: Radius.xl,
-    backgroundColor: 'rgba(13, 17, 39, 0.94)',
+    backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
     overflow: 'hidden',
     maxHeight: 360,
+    ...Shadows.card,
   },
   searchEmpty: {
     padding: 17,

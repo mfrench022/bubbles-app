@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Radius } from '../theme';
+import { Colors, Radius, Shadows } from '../theme';
 import { PlusIcon } from './Icons';
 
 interface BubbleTagsProps {
@@ -56,10 +56,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.stroke,
+    ...Shadows.card,
   },
   tagSelected: {
-    backgroundColor: Colors.toggleActive,
-    borderColor: 'rgba(115, 132, 198, 0.5)',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primarySolid,
   },
   tagAdd: {
     paddingHorizontal: 10,
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.textMuted,
   },
   tagTextSelected: {

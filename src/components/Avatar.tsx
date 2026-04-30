@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { initials } from '../store';
+import { Colors } from '../theme';
 
 interface AvatarProps {
   name: string;
@@ -28,7 +29,7 @@ export function Avatar({ name, color, image, size, style, onPress, onLongPress, 
     overflow: 'hidden',
     ...(showBorder && {
       borderWidth,
-      borderColor: 'rgba(116, 171, 255, 0.78)',
+      borderColor: Colors.thumbnailStroke,
     }),
   };
 

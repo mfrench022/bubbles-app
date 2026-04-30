@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Modal, Pressable,
 } from 'react-native';
-import { Colors, Radius, Spacing } from '../theme';
+import { Colors, Radius, Shadows, Spacing } from '../theme';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -50,19 +50,20 @@ export function ConfirmDialog({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(31, 36, 48, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   panel: {
     width: '100%',
-    backgroundColor: 'rgba(13, 17, 39, 0.96)',
+    backgroundColor: Colors.sheetBg,
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.stroke,
     padding: Spacing.xl,
     gap: 12,
+    ...Shadows.card,
   },
   title: {
     fontSize: 18,
@@ -85,17 +86,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 22, 51, 0.74)',
+    backgroundColor: Colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: Colors.stroke,
+    borderColor: Colors.inputBorder,
   },
   btnPrimary: {
-    backgroundColor: Colors.toggleActive,
-    borderColor: 'rgba(115, 132, 198, 0.5)',
+    backgroundColor: Colors.primarySolid,
+    borderColor: Colors.primarySolid,
   },
   btnDanger: {
-    backgroundColor: 'rgba(217, 83, 79, 0.2)',
-    borderColor: 'rgba(217, 83, 79, 0.4)',
+    backgroundColor: '#F4D8D4',
+    borderColor: '#E8AAA0',
   },
   btnText: {
     fontSize: 16,
@@ -103,6 +104,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   btnPrimaryText: {
-    color: Colors.text,
+    color: Colors.inverseText,
   },
 });

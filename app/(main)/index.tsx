@@ -1,19 +1,30 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, LayoutChangeEvent } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store';
-import { Header } from '../../src/components/Header';
-import { BubbleChart } from '../../src/components/BubbleChart';
+import { Header, useHeaderInset } from '../../src/components/Header';
+import { ZoomableBubbleChart } from '../../src/components/ZoomableBubbleChart';
+import {
+  BOTTOM_NAV_BOTTOM_GUTTER,
+  BOTTOM_NAV_SHELL_HEIGHT,
+  useBottomNavInset,
+} from '../../src/components/BottomNav';
 import { ContactCard } from '../../src/components/ContactCard';
 import { SelectionSheet } from '../../src/components/SelectionSheet';
-import { Colors } from '../../src/theme';
+import { PlusIcon } from '../../src/components/Icons';
+import { BubbleColorKey, Colors } from '../../src/theme';
 import { ContactModeButton } from '../../src/components/ContactModeButton';
+import { GlassIconButton } from '../../src/components/GlassIconButton';
 
 export default function MainScreen() {
   const router = useRouter();
   const contacts = useStore(s => s.contacts);
   const bubbles = useStore(s => s.bubbles);
   const addBubble = useStore(s => s.addBubble);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<'bubble' | 'contact'>('bubble');
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
@@ -54,12 +65,13 @@ export default function MainScreen() {
 
   const sortedContacts = [...filteredContacts].sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleCreateBubble = useCallback((name: string, selectedContactIds: number[]) => {
+  const handleCreateBubble = useCallback((name: string, selectedContactIds: number[], colorKey: BubbleColorKey) => {
     addBubble({
       label: name,
       x: 40,
       y: 40,
       size: 22,
+      colorKey,
       contactIds: selectedContactIds,
       subBubbleIds: [],
     });
@@ -84,12 +96,12 @@ export default function MainScreen() {
       {mode === 'bubble' ? (
         <View style={styles.chartContainer} onLayout={handleChartLayout}>
           {chartSize.width > 0 && (
-            <BubbleChart
+            <ZoomableBubbleChart
               chartWidth={chartSize.width}
               chartHeight={chartSize.height}
               onBubbleTap={handleBubbleTap}
               onAvatarTap={handleAvatarTap}
-              onAddBubbleTap={handleAddBubbleTap}
+              interactiveCanvas
             />
           )}
         </View>
@@ -98,7 +110,7 @@ export default function MainScreen() {
           data={sortedContacts}
           keyExtractor={item => String(item.id)}
           style={styles.list}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
           renderItem={({ item }) => (
             <ContactCard
               contact={item}
@@ -109,6 +121,19 @@ export default function MainScreen() {
           )}
         />
       )}
+
+      {mode === 'bubble' ? (
+        <View
+          style={[
+            styles.floatingAddButton,
+            { bottom: BOTTOM_NAV_SHELL_HEIGHT + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER) + 22 },
+          ]}
+        >
+          <GlassIconButton onPress={handleAddBubbleTap} size={64}>
+            <PlusIcon size={28} color={Colors.textMuted} />
+          </GlassIconButton>
+        </View>
+      ) : null}
 
       <SelectionSheet
         visible={sheetVisible}
@@ -128,8 +153,11 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     flex: 1,
-    marginHorizontal: 17,
-    marginTop: 12,
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    right: 18,
+    zIndex: 80,
   },
   list: {
     flex: 1,
@@ -137,6 +165,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 17,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 24,
+    gap: 2,
   },
 });

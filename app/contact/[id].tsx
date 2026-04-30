@@ -4,13 +4,14 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../../src/store';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { Avatar } from '../../src/components/Avatar';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { InfoCard, InfoRow } from '../../src/components/InfoCard';
 import { BubbleTags } from '../../src/components/BubbleTags';
 import { ConfirmDialog } from '../../src/components/ConfirmDialog';
 import { SelectionSheet } from '../../src/components/SelectionSheet';
-import { Colors, Radius, Spacing } from '../../src/theme';
+import { BubbleColorKey, Colors, Radius, Shadows, Spacing } from '../../src/theme';
 
 export default function ContactDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +24,8 @@ export default function ContactDetailScreen() {
   const deleteContact = useStore(s => s.deleteContact);
   const applyBubbleAssignments = useStore(s => s.applyBubbleAssignments);
   const addBubble = useStore(s => s.addBubble);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -33,10 +36,11 @@ export default function ContactDetailScreen() {
     router.back();
   }, [contactId, deleteContact, router]);
 
-  const handleAddToBubble = useCallback((name: string, selectedIds: number[]) => {
-    const newBubble = addBubble({
+  const handleAddToBubble = useCallback((name: string, selectedIds: number[], colorKey: BubbleColorKey) => {
+    addBubble({
       label: name,
       x: 40, y: 40, size: 22,
+      colorKey,
       contactIds: [contactId, ...selectedIds.filter(id => id !== contactId)],
       subBubbleIds: [],
     });
@@ -86,7 +90,7 @@ export default function ContactDetailScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
         showsVerticalScrollIndicator={false}
       >
         <Avatar
@@ -190,6 +194,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.stroke,
     overflow: 'hidden',
+    ...Shadows.card,
   },
   notesTitle: {
     fontSize: 13,
@@ -235,6 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.stroke,
+    ...Shadows.card,
   },
   actionBtnText: {
     fontSize: 16,
@@ -244,8 +250,8 @@ const styles = StyleSheet.create({
   dangerBtn: {
     marginHorizontal: 17,
     flex: 0,
-    backgroundColor: 'rgba(217, 83, 79, 0.15)',
-    borderColor: 'rgba(217, 83, 79, 0.3)',
+    backgroundColor: '#FBE8E6',
+    borderColor: '#F0C3BE',
     marginBottom: 16,
   },
   dangerBtnText: {

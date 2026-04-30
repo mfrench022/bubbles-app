@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import {
   BubbleTapIcon, ImportCloudIcon, PasteTextIcon,
   UploadPhotoIcon, ManualEntryIcon,
 } from '../../src/components/Icons';
-import { Colors, Radius, Spacing } from '../../src/theme';
+import { Colors, Radius, Shadows, Spacing } from '../../src/theme';
 
 const OPTIONS = [
   {
@@ -48,6 +49,8 @@ const OPTIONS = [
 
 export default function AddContactScreen() {
   const router = useRouter();
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   return (
     <View style={styles.screen}>
@@ -55,7 +58,7 @@ export default function AddContactScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
         showsVerticalScrollIndicator={false}
       >
         {OPTIONS.map(opt => (
@@ -99,9 +102,10 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: Spacing.lg,
     borderRadius: Radius.lg,
-    backgroundColor: 'rgba(17, 22, 51, 0.74)',
+    backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.stroke,
+    ...Shadows.card,
   },
   optionIcon: {
     width: 52,

@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet, View } from 'react-native';
 import { useStore } from '../src/store';
-import { Colors } from '../src/theme';
+import { Colors, getBubblePalette } from '../src/theme';
 import { AppBackground } from '../src/components/AppBackground';
 import { BottomNav } from '../src/components/BottomNav';
 
@@ -13,12 +13,20 @@ export default function RootLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const initialize = useStore(s => s.initialize);
+  const bubbles = useStore(s => s.bubbles);
   const showBottomNav = pathname !== '/add-contact/manual';
   const activeTab = pathname.startsWith('/add-contact')
     ? 'add'
     : pathname === '/profile'
       ? 'profile'
       : 'bubbles';
+  const bubbleDetailMatch = pathname.match(/^\/bubble\/(.+)$/);
+  const activeBubble = bubbleDetailMatch
+    ? bubbles.find(b => b.id === decodeURIComponent(bubbleDetailMatch[1]))
+    : undefined;
+  const activeBackgroundColors = activeBubble
+    ? getBubblePalette(activeBubble.colorKey).colors
+    : undefined;
 
   useEffect(() => {
     initialize();
@@ -27,14 +35,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <AppBackground>
+        <StatusBar style="dark" />
+        <AppBackground backgroundColors={activeBackgroundColors}>
           <View style={styles.appShell}>
             <View style={styles.content}>
               <Stack
                 screenOptions={{
                   headerShown: false,
-                  contentStyle: { backgroundColor: Colors.appBg },
+                  contentStyle: { backgroundColor: 'transparent' },
                   animation: 'none',
                 }}
               >
@@ -52,6 +60,7 @@ export default function RootLayout() {
             {showBottomNav ? (
               <BottomNav
                 active={activeTab}
+                backgroundColors={activeBackgroundColors}
                 onPress={tab => {
                   if (tab === 'bubbles') router.replace('/');
                   else if (tab === 'add') router.replace('/add-contact');

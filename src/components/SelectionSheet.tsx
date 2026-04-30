@@ -1,10 +1,18 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Modal, Pressable, ScrollView, FlatList,
+  Modal, Pressable, ScrollView,
 } from 'react-native';
 import { useStore } from '../store';
-import { Colors, Radius, Spacing } from '../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  BUBBLE_COLOR_OPTIONS,
+  BubbleColorKey,
+  Colors,
+  Radius,
+  Spacing,
+  getBubblePalette,
+} from '../theme';
 import { Avatar } from './Avatar';
 
 const EMPTY_CONTACT_IDS: number[] = [];
@@ -15,7 +23,8 @@ interface SelectionSheetProps {
   subtitle?: string;
   preselectedContactIds?: number[];
   initialBubbleName?: string;
-  onConfirm: (bubbleName: string, selectedContactIds: number[]) => void;
+  preselectedColorKey?: BubbleColorKey;
+  onConfirm: (bubbleName: string, selectedContactIds: number[], colorKey: BubbleColorKey) => void;
   onCancel: () => void;
 }
 
@@ -25,6 +34,7 @@ export function SelectionSheet({
   subtitle = 'Select more contacts to include.',
   preselectedContactIds = EMPTY_CONTACT_IDS,
   initialBubbleName = 'New Bubble',
+  preselectedColorKey = 'violet',
   onConfirm,
   onCancel,
 }: SelectionSheetProps) {
@@ -32,13 +42,15 @@ export function SelectionSheet({
   const [bubbleName, setBubbleName] = useState(initialBubbleName);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(preselectedContactIds));
+  const [colorKey, setColorKey] = useState<BubbleColorKey>(preselectedColorKey);
 
   useEffect(() => {
     if (!visible) return;
     setBubbleName(initialBubbleName);
     setSearchQuery('');
     setSelectedIds(new Set(preselectedContactIds));
-  }, [initialBubbleName, preselectedContactIds, visible]);
+    setColorKey(preselectedColorKey);
+  }, [initialBubbleName, preselectedColorKey, preselectedContactIds, visible]);
 
   const filtered = searchQuery.trim()
     ? contacts.filter(c =>
@@ -57,8 +69,8 @@ export function SelectionSheet({
   }, []);
 
   const handleConfirm = useCallback(() => {
-    onConfirm(bubbleName || 'New Bubble', Array.from(selectedIds));
-  }, [bubbleName, selectedIds, onConfirm]);
+    onConfirm(bubbleName || 'New Bubble', Array.from(selectedIds), colorKey);
+  }, [bubbleName, colorKey, selectedIds, onConfirm]);
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onCancel}>
@@ -81,6 +93,33 @@ export function SelectionSheet({
                 placeholder="New Bubble"
                 placeholderTextColor={Colors.textMuted}
               />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Color</Text>
+              <View style={styles.colorGrid}>
+                {BUBBLE_COLOR_OPTIONS.map(option => {
+                  const palette = getBubblePalette(option.key);
+                  const selected = colorKey === option.key;
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[styles.colorOption, selected && styles.colorOptionSelected]}
+                      onPress={() => setColorKey(option.key)}
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient
+                        colors={palette.colors}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.colorSwatch}
+                      />
+                      <Text style={[styles.colorLabel, selected && styles.colorLabelSelected]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Search Contacts</Text>
@@ -132,23 +171,28 @@ export function SelectionSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(31, 36, 48, 0.28)',
     justifyContent: 'flex-end',
   },
   panel: {
-    backgroundColor: 'rgba(10, 13, 32, 0.96)',
+    backgroundColor: Colors.sheetBg,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.stroke,
     maxHeight: '80%',
     paddingBottom: 32,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 10,
   },
   grabber: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.stroke,
+    backgroundColor: Colors.strokeStrong,
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 8,
@@ -160,7 +204,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
   },
   subtitle: {
@@ -177,7 +221,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -192,6 +236,35 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
   },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  colorOption: {
+    width: '18%',
+    minWidth: 60,
+    alignItems: 'center',
+    gap: 6,
+  },
+  colorOptionSelected: {
+    transform: [{ scale: 1.04 }],
+  },
+  colorSwatch: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.75)',
+  },
+  colorLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  colorLabelSelected: {
+    color: Colors.text,
+  },
   list: {
     maxHeight: 280,
     marginHorizontal: Spacing.xl,
@@ -205,7 +278,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   contactRowSelected: {
-    backgroundColor: 'rgba(115, 132, 198, 0.12)',
+    backgroundColor: Colors.primary,
   },
   contactName: {
     flex: 1,
@@ -217,12 +290,13 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: Colors.stroke,
+    borderColor: Colors.inputBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.surface,
   },
   checkSelected: {
-    backgroundColor: Colors.toggleActive,
+    backgroundColor: Colors.primary,
     borderColor: Colors.primarySolid,
   },
   checkmark: {
@@ -242,20 +316,20 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(17, 22, 51, 0.74)',
+    backgroundColor: Colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: Colors.stroke,
+    borderColor: Colors.inputBorder,
   },
   actionBtnPrimary: {
-    backgroundColor: Colors.toggleActive,
-    borderColor: 'rgba(115, 132, 198, 0.5)',
+    backgroundColor: Colors.primarySolid,
+    borderColor: Colors.primarySolid,
   },
   actionBtnText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.text,
   },
   actionBtnPrimaryText: {
-    color: Colors.text,
+    color: Colors.inverseText,
   },
 });

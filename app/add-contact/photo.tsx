@@ -5,8 +5,9 @@ import {
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useStore, getTodayNoteDate } from '../../src/store';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { Avatar } from '../../src/components/Avatar';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { Colors, Radius, Spacing } from '../../src/theme';
 
 function parseContactText(text: string): Record<string, string> {
@@ -28,6 +29,8 @@ export default function UploadPhotoScreen() {
   const router = useRouter();
   const contacts = useStore(s => s.contacts);
   const updateContact = useStore(s => s.updateContact);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState('');
@@ -94,7 +97,11 @@ export default function UploadPhotoScreen() {
     <View style={styles.screen}>
       <Header title="Upload Photo" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <TouchableOpacity style={styles.dropZone} onPress={pickImage} activeOpacity={0.7}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />

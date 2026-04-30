@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Contact, DEFAULT_CONTACTS } from '../data/contacts';
 import { Bubble, DEFAULT_BUBBLES } from '../data/bubbles';
 import { saveAppData, loadAppData, clearAppData } from '../utils/storage';
+import { BubbleColorKey } from '../theme';
 
 let generatedBubbleCount = 1;
 
@@ -15,6 +16,7 @@ function getHighestGeneratedBubbleNumber(bubbles: Bubble[]): number {
 function ensureBubbleArrays(bubble: Bubble): Bubble {
   return {
     ...bubble,
+    colorKey: bubble.colorKey || 'violet',
     subBubbleIds: bubble.subBubbleIds || [],
     contactIds: bubble.contactIds || [],
   };
@@ -64,6 +66,52 @@ function getNextContactId(contacts: Contact[]): number {
   return contacts.length > 0 ? Math.max(...contacts.map(c => c.id)) + 1 : 1;
 }
 
+function cloneDefaultContacts(): Contact[] {
+  return JSON.parse(JSON.stringify(DEFAULT_CONTACTS));
+}
+
+function cloneDefaultBubbles(): Bubble[] {
+  return JSON.parse(JSON.stringify(DEFAULT_BUBBLES));
+}
+
+function mergeMissingDefaultContacts(storedContacts: Contact[]): Contact[] {
+  const contactsById = new Map(storedContacts.map(contact => [contact.id, contact]));
+  cloneDefaultContacts().forEach(contact => {
+    if (!contactsById.has(contact.id)) {
+      contactsById.set(contact.id, contact);
+    }
+  });
+  return Array.from(contactsById.values()).sort((a, b) => a.id - b.id);
+}
+
+function mergeMissingDefaultBubbles(storedBubbles: Bubble[]): Bubble[] {
+  const defaultBubbles = cloneDefaultBubbles();
+  const defaultBubbleMap = new Map(defaultBubbles.map(bubble => [bubble.id, ensureBubbleArrays(bubble)]));
+  const bubblesById = new Map(
+    storedBubbles.map(bubble => {
+      const normalized = ensureBubbleArrays(bubble);
+      const seededDefault = defaultBubbleMap.get(normalized.id);
+      return [
+        normalized.id,
+        seededDefault
+          ? {
+              ...normalized,
+              // Keep seeded demo bubbles visually current across releases.
+              colorKey: seededDefault.colorKey,
+            }
+          : normalized,
+      ];
+    })
+  );
+
+  defaultBubbles.forEach(bubble => {
+    if (!bubblesById.has(bubble.id)) {
+      bubblesById.set(bubble.id, ensureBubbleArrays(bubble));
+    }
+  });
+  return Array.from(bubblesById.values());
+}
+
 interface AppState {
   contacts: Contact[];
   bubbles: Bubble[];
@@ -105,13 +153,16 @@ export const useStore = create<AppState>((set, get) => ({
   initialize: async () => {
     const stored = await loadAppData();
     if (stored) {
-      const bubbles = normalizeBubbleSizes(stored.bubbles || []);
+      const contacts = mergeMissingDefaultContacts(stored.contacts || []);
+      const bubbles = normalizeBubbleSizes(mergeMissingDefaultBubbles(stored.bubbles || []));
       generatedBubbleCount = Math.max(1, getHighestGeneratedBubbleNumber(bubbles) + 1);
-      set({ contacts: stored.contacts || [], bubbles, initialized: true });
+      set({ contacts, bubbles, initialized: true });
+      saveAppData({ contacts, bubbles });
     } else {
-      const bubbles = normalizeBubbleSizes(JSON.parse(JSON.stringify(DEFAULT_BUBBLES)));
+      const contacts = cloneDefaultContacts();
+      const bubbles = normalizeBubbleSizes(cloneDefaultBubbles());
       generatedBubbleCount = getHighestGeneratedBubbleNumber(bubbles) + 1;
-      set({ bubbles, initialized: true });
+      set({ contacts, bubbles, initialized: true });
     }
   },
 
@@ -122,10 +173,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   reset: () => {
     clearAppData();
-    const bubbles = normalizeBubbleSizes(JSON.parse(JSON.stringify(DEFAULT_BUBBLES)));
+    const contacts = cloneDefaultContacts();
+    const bubbles = normalizeBubbleSizes(cloneDefaultBubbles());
     generatedBubbleCount = getHighestGeneratedBubbleNumber(bubbles) + 1;
     set({
-      contacts: JSON.parse(JSON.stringify(DEFAULT_CONTACTS)),
+      contacts,
       bubbles,
     });
   },
@@ -399,6 +451,7 @@ export const useStore = create<AppState>((set, get) => ({
       x: parent.x + 5,
       y: parent.y + 5,
       size: 0,
+      colorKey: parent.colorKey as BubbleColorKey,
       contactIds: [sourceContactId, targetContactId],
       subBubbleIds: [],
       parentId: parent.id,

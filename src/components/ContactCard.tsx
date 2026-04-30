@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Contact } from '../data/contacts';
 import { useStore } from '../store';
-import { Colors, Radius, Spacing } from '../theme';
+import { Colors, Radius, Shadows, Spacing } from '../theme';
 import { Avatar } from './Avatar';
 import { BubbleTags } from './BubbleTags';
 
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Colors.stroke,
+    ...Shadows.card,
   },
   info: {
     flex: 1,
@@ -84,13 +85,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.full,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: Colors.stroke,
+    borderColor: Colors.inputBorder,
   },
   chipSelected: {
-    backgroundColor: Colors.toggleActive,
-    borderColor: 'rgba(115, 132, 198, 0.5)',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primarySolid,
   },
   chipText: {
     fontSize: 12,

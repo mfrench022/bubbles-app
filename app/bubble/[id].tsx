@@ -1,13 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, LayoutChangeEvent, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../../src/store';
-import { Header } from '../../src/components/Header';
+import { Header, useHeaderInset } from '../../src/components/Header';
 import { BubbleChart } from '../../src/components/BubbleChart';
 import { ContactCard } from '../../src/components/ContactCard';
+import { useBottomNavInset } from '../../src/components/BottomNav';
 import { SelectionSheet } from '../../src/components/SelectionSheet';
-import { Colors } from '../../src/theme';
+import { BubbleColorKey, Colors } from '../../src/theme';
 import { ContactModeButton } from '../../src/components/ContactModeButton';
+import { GlassIconButton } from '../../src/components/GlassIconButton';
 
 export default function BubbleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -16,6 +18,8 @@ export default function BubbleDetailScreen() {
   const contacts = useStore(s => s.contacts);
   const addBubble = useStore(s => s.addBubble);
   const updateBubble = useStore(s => s.updateBubble);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
 
   const [mode, setMode] = useState<'bubble' | 'contact'>('bubble');
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
@@ -36,13 +40,14 @@ export default function BubbleDetailScreen() {
     router.push(`/contact/${contactId}`);
   }, [router]);
 
-  const handleCreateBubble = useCallback((name: string, contactIds: number[]) => {
+  const handleCreateBubble = useCallback((name: string, contactIds: number[], colorKey: BubbleColorKey) => {
     if (!bubble) return;
     const newBubble = addBubble({
       label: name,
       x: bubble.x + 5,
       y: bubble.y + 5,
       size: 0,
+      colorKey,
       contactIds,
       subBubbleIds: [],
       parentId: bubble.id,
@@ -88,9 +93,9 @@ export default function BubbleDetailScreen() {
         centerTitle
         leftSlot={(
           <>
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerBack} activeOpacity={0.7}>
+            <GlassIconButton onPress={() => router.back()}>
               <Text style={styles.headerBackGlyph}>{"\u2039"}</Text>
-            </TouchableOpacity>
+            </GlassIconButton>
             <ContactModeButton
               active={mode === 'contact'}
               onPress={() => setMode(prev => (prev === 'bubble' ? 'contact' : 'bubble'))}
@@ -119,6 +124,7 @@ export default function BubbleDetailScreen() {
           data={sortedContacts}
           keyExtractor={item => String(item.id)}
           style={styles.list}
+          contentContainerStyle={{ paddingTop: headerInset, paddingBottom: bottomNavInset }}
           renderItem={({ item }) => (
             <ContactCard
               contact={item}
@@ -133,6 +139,7 @@ export default function BubbleDetailScreen() {
         subtitle="Select contacts to include."
         preselectedContactIds={sheetPreselectedIds.length > 0 ? sheetPreselectedIds : bubble.contactIds}
         initialBubbleName={sheetInitialName}
+        preselectedColorKey={bubble.colorKey}
         onConfirm={handleCreateBubble}
         onCancel={() => {
           setSheetVisible(false);
@@ -147,32 +154,24 @@ export default function BubbleDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.appBg,
+    backgroundColor: 'transparent',
   },
   chartContainer: {
     flex: 1,
     marginHorizontal: 17,
     marginTop: 12,
+    marginBottom: 12,
   },
   list: {
     flex: 1,
     paddingHorizontal: 17,
+    paddingTop: 10,
   },
   notFound: {
     flex: 1,
     textAlign: 'center',
     color: Colors.textMuted,
     marginTop: 40,
-  },
-  headerBack: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.iconBtn,
-    borderWidth: 1,
-    borderColor: Colors.iconBtnBorder,
   },
   headerBackGlyph: {
     color: Colors.text,

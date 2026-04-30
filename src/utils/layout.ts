@@ -30,6 +30,10 @@ function circlesOverlap(a: Circle, b: Circle, padding = 0): boolean {
   return dx * dx + dy * dy < minDistance * minDistance;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function layoutAvatars(
   count: number,
   bubbleRadius: number,
@@ -109,27 +113,53 @@ export function layoutAvatars(
 export function bubbleToPxCircle(
   bubble: { id: string; x: number; y: number; size: number; [key: string]: any },
   chartW: number,
-  chartH: number
+  chartH: number,
+  sizeReferenceW = chartW
 ): BubbleCircle {
-  const size = (bubble.size / 100) * chartW;
+  const size = (bubble.size / 100) * sizeReferenceW;
   const radius = size / 2;
   const x = (bubble.x / 100) * chartW;
   const y = (bubble.y / 100) * chartH;
   return { ...bubble, pxSize: size, r: radius, cx: x + radius, cy: y + radius };
 }
 
-export function pxCircleToBubble(circle: BubbleCircle, chartW: number, chartH: number) {
+export function pxCircleToBubble(
+  circle: BubbleCircle,
+  chartW: number,
+  chartH: number,
+  sizeReferenceW = chartW
+) {
   return {
     ...circle,
     x: ((circle.cx - circle.r) / chartW) * 100,
     y: ((circle.cy - circle.r) / chartH) * 100,
-    size: (circle.pxSize / chartW) * 100,
+    size: (circle.pxSize / sizeReferenceW) * 100,
   };
 }
 
 function clampCircleToChart(circle: BubbleCircle, chartW: number, chartH: number, padding: number) {
   circle.cx = Math.min(chartW - padding - circle.r, Math.max(padding + circle.r, circle.cx));
   circle.cy = Math.min(chartH - padding - circle.r, Math.max(padding + circle.r, circle.cy));
+}
+
+function clampCircleToCircularField(
+  circle: BubbleCircle,
+  chartW: number,
+  chartH: number,
+  padding: number
+) {
+  const centerX = chartW / 2;
+  const centerY = chartH / 2;
+  const maxDistance = Math.max(0, Math.min(chartW, chartH) / 2 - padding - circle.r);
+  const dx = circle.cx - centerX;
+  const dy = circle.cy - centerY;
+  const distance = Math.hypot(dx, dy);
+
+  if (distance > maxDistance && distance > 0) {
+    const ratio = maxDistance / distance;
+    circle.cx = centerX + dx * ratio;
+    circle.cy = centerY + dy * ratio;
+  }
 }
 
 function clampCircleToParent(circle: BubbleCircle, parent: BubbleCircle, padding: number) {
@@ -142,9 +172,48 @@ function clampCircleToParent(circle: BubbleCircle, parent: BubbleCircle, padding
     const ratio = maxDistance / distance;
     circle.cx = parent.cx + dx * ratio;
     circle.cy = parent.cy + dy * ratio;
-  } else if (distance === 0 && maxDistance > 0) {
-    circle.cy = parent.cy + maxDistance;
   }
+}
+
+function getCirclePackArea(circles: BubbleCircle[]): number {
+  return circles.reduce((sum, circle) => sum + Math.PI * circle.r * circle.r, 0);
+}
+
+function applyDensityScale(
+  circles: BubbleCircle[],
+  options: {
+    availableArea: number;
+    minScale?: number;
+    comfortableOccupancy?: number;
+    densityBias?: number;
+    countStart?: number;
+    countSlope?: number;
+  }
+) {
+  if (!circles.length || options.availableArea <= 0) return;
+
+  const {
+    minScale = 0.62,
+    comfortableOccupancy = 0.56,
+    densityBias = 0.94,
+    countStart = 12,
+    countSlope = 0.014,
+  } = options;
+
+  const occupiedArea = getCirclePackArea(circles);
+  const occupancy = occupiedArea / options.availableArea;
+  const occupancyScale = occupancy > comfortableOccupancy
+    ? Math.sqrt((comfortableOccupancy / occupancy) * densityBias)
+    : 1;
+  const countScale = 1 - Math.max(0, circles.length - countStart) * countSlope;
+  const scale = clamp(Math.min(occupancyScale, countScale), minScale, 1);
+
+  if (scale >= 0.999) return;
+
+  circles.forEach(circle => {
+    circle.pxSize *= scale;
+    circle.r = circle.pxSize / 2;
+  });
 }
 
 function resolveBubbleCollisions(
@@ -224,21 +293,73 @@ function centerBubbleLayout(
   });
 }
 
+function seedCircularBubbleLayout(
+  circles: BubbleCircle[],
+  chartW: number,
+  chartH: number,
+  gap: number
+) {
+  if (!circles.length) return;
+
+  const centerX = chartW / 2;
+  const centerY = chartH / 2;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const maxRadius = circles.reduce((max, circle) => Math.max(max, circle.r), 0);
+  const radialStep = maxRadius * 0.9 + gap;
+
+  circles.forEach((circle, index) => {
+    if (index === 0) {
+      circle.cx = centerX;
+      circle.cy = centerY;
+      return;
+    }
+
+    const ringRadius = Math.sqrt(index) * radialStep;
+    const angle = index * goldenAngle;
+    circle.cx = centerX + Math.cos(angle) * ringRadius;
+    circle.cy = centerY + Math.sin(angle) * ringRadius;
+  });
+}
+
 export function layoutTopLevelBubbles(
   bubbles: Array<{ id: string; x: number; y: number; size: number; parentId?: string; [key: string]: any }>,
   chartW: number,
   chartH: number,
   gap = 22,
-  padding = 12
+  padding = 12,
+  sizeReferenceW = chartW,
+  circular = false
 ): Map<string, { x: number; y: number; size: number; [key: string]: any }> {
   const topLevel = bubbles.filter(b => !b.parentId);
-  const circles = topLevel.map(b => bubbleToPxCircle(b, chartW, chartH));
+  const circles = topLevel.map(b => bubbleToPxCircle(b, chartW, chartH, sizeReferenceW));
+  const clampFn = circular
+    ? (circle: BubbleCircle) => clampCircleToCircularField(circle, chartW, chartH, padding)
+    : (circle: BubbleCircle) => clampCircleToChart(circle, chartW, chartH, padding);
+  const fieldRadius = Math.max(0, Math.min(chartW, chartH) / 2 - padding);
+  const availableArea = circular
+    ? Math.PI * fieldRadius * fieldRadius
+    : Math.max(0, (chartW - padding * 2) * (chartH - padding * 2));
 
-  circles.forEach(c => clampCircleToChart(c, chartW, chartH, padding));
-  resolveBubbleCollisions(circles, gap, c => clampCircleToChart(c, chartW, chartH, padding));
+  applyDensityScale(circles, {
+    availableArea,
+    minScale: circular ? 0.74 : 0.8,
+    comfortableOccupancy: circular ? 0.68 : 0.58,
+    densityBias: circular ? 0.96 : 0.98,
+    countStart: circular ? 18 : 20,
+    countSlope: circular ? 0.006 : 0.004,
+  });
+
+  if (circular) {
+    seedCircularBubbleLayout(circles, chartW, chartH, gap);
+  }
+
+  circles.forEach(clampFn);
+  resolveBubbleCollisions(circles, gap, clampFn);
   centerBubbleLayout(circles, chartW, chartH, padding);
+  circles.forEach(clampFn);
+  resolveBubbleCollisions(circles, gap, clampFn);
 
-  return new Map(circles.map(c => [c.id as string, pxCircleToBubble(c, chartW, chartH)]));
+  return new Map(circles.map(c => [c.id as string, pxCircleToBubble(c, chartW, chartH, sizeReferenceW)]));
 }
 
 export function layoutNestedBubbles(
@@ -247,15 +368,26 @@ export function layoutNestedBubbles(
   chartW: number,
   chartH: number,
   gap = 4,
-  padding = 4
+  padding = 4,
+  sizeReferenceW = chartW
 ): Array<{ id: string; x: number; y: number; size: number; [key: string]: any }> {
   if (!nestedBubbles.length) return [];
 
-  const parentCircle = bubbleToPxCircle({ id: parentBubble.id || '', ...parentBubble }, chartW, chartH);
-  const circles = nestedBubbles.map(b => bubbleToPxCircle(b, chartW, chartH));
+  const parentCircle = bubbleToPxCircle({ id: parentBubble.id || '', ...parentBubble }, chartW, chartH, sizeReferenceW);
+  const circles = nestedBubbles.map(b => bubbleToPxCircle(b, chartW, chartH, sizeReferenceW));
+  const availableRadius = Math.max(0, parentCircle.r - padding);
+
+  applyDensityScale(circles, {
+    availableArea: Math.PI * availableRadius * availableRadius,
+    minScale: 0.68,
+    comfortableOccupancy: 0.58,
+    densityBias: 0.94,
+    countStart: 6,
+    countSlope: 0.025,
+  });
 
   circles.forEach(c => clampCircleToParent(c, parentCircle, padding));
   resolveBubbleCollisions(circles, gap, c => clampCircleToParent(c, parentCircle, padding));
 
-  return circles.map(c => pxCircleToBubble(c, chartW, chartH)) as Array<{ id: string; x: number; y: number; size: number; [key: string]: any }>;
+  return circles.map(c => pxCircleToBubble(c, chartW, chartH, sizeReferenceW)) as Array<{ id: string; x: number; y: number; size: number; [key: string]: any }>;
 }

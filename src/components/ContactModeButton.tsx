@@ -1,7 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../theme';
 import { ListDashesIcon } from './Icons';
+import { GlassIconButton } from './GlassIconButton';
 
 interface ContactModeButtonProps {
   active: boolean;
@@ -10,31 +10,12 @@ interface ContactModeButtonProps {
 
 export function ContactModeButton({ active, onPress }: ContactModeButtonProps) {
   return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityLabel={active ? 'Turn off contact mode' : 'Turn on contact mode'}
-      style={[styles.button, active && styles.buttonActive]}
+    <GlassIconButton
       onPress={onPress}
-      activeOpacity={0.82}
+      tintColor={active ? 'rgba(101,89,232,0.22)' : undefined}
+      borderColor={active ? 'rgba(101,89,232,0.48)' : 'rgba(255,255,255,0.72)'}
     >
-      <ListDashesIcon color={active ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.66)'} />
-    </TouchableOpacity>
+      <ListDashesIcon color={active ? Colors.primarySolid : Colors.textMuted} />
+    </GlassIconButton>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    width: 47,
-    height: 46,
-    borderRadius: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.iconBtn,
-    borderWidth: 1,
-    borderColor: Colors.iconBtnBorder,
-  },
-  buttonActive: {
-    backgroundColor: Colors.toggleActive,
-    borderColor: 'rgba(118, 167, 255, 0.24)',
-  },
-});

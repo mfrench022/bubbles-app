@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Radius, Spacing } from '../theme';
+import { Colors, Radius, Shadows, Spacing } from '../theme';
 import {
   EmailIcon, PhoneIcon, BirthdayIcon, SlackIcon, InstagramIcon,
   TwitterIcon, LinkedInIcon, SocialIcon, NoteIcon,
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.stroke,
     overflow: 'hidden',
+    ...Shadows.card,
   },
   title: {
     fontSize: 13,

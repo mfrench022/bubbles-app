@@ -3,17 +3,20 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'rea
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
 import { USER_PROFILE } from '../src/data/user';
-import { Header } from '../src/components/Header';
+import { Header, useHeaderInset } from '../src/components/Header';
 import { Avatar } from '../src/components/Avatar';
+import { useBottomNavInset } from '../src/components/BottomNav';
 import { InfoCard, InfoRow } from '../src/components/InfoCard';
 import { BubbleTags } from '../src/components/BubbleTags';
 import { ConfirmDialog } from '../src/components/ConfirmDialog';
-import { Colors, Radius, Spacing } from '../src/theme';
+import { Colors, Radius, Shadows, Spacing } from '../src/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const bubbles = useStore(s => s.bubbles);
   const reset = useStore(s => s.reset);
+  const bottomNavInset = useBottomNavInset();
+  const headerInset = useHeaderInset();
   const [confirmVisible, setConfirmVisible] = useState(false);
 
   const topLevelBubbles = bubbles.filter(b => !b.parentId);
@@ -51,7 +54,7 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset, paddingBottom: bottomNavInset }]}
         showsVerticalScrollIndicator={false}
       >
         <Avatar
@@ -132,6 +135,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBg,
     borderWidth: 1,
     borderColor: Colors.stroke,
+    ...Shadows.card,
   },
   actionBtnText: {
     fontSize: 16,
@@ -141,8 +145,8 @@ const styles = StyleSheet.create({
   dangerBtn: {
     marginHorizontal: 17,
     flex: 0,
-    backgroundColor: 'rgba(217, 83, 79, 0.15)',
-    borderColor: 'rgba(217, 83, 79, 0.3)',
+    backgroundColor: '#FBE8E6',
+    borderColor: '#F0C3BE',
     marginBottom: 16,
   },
   dangerBtnText: {
