@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Contact } from '../data/contacts';
 import { Bubble } from '../data/bubbles';
+import { UserProfile } from '../data/user';
 
 const APP_STORAGE_KEY = 'bubbles-app-data-v1';
 
 export interface StoredData {
   contacts: Contact[];
   bubbles: Bubble[];
+  userProfile?: UserProfile;
 }
 
 export async function saveAppData(data: StoredData): Promise<void> {

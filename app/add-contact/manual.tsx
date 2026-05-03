@@ -1,14 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
-  Image, Alert,
+  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { useStore, initials, getTodayNoteDate, getImportedContactColor } from '../../src/store';
+import { useStore, initials, getImportedContactColor } from '../../src/store';
 import { Header, useHeaderInset } from '../../src/components/Header';
+import { ConfirmDialog } from '../../src/components/ConfirmDialog';
 import { Colors, Radius, Spacing } from '../../src/theme';
-import { DEMO_PROFILE_IMAGES } from '../../src/data/user';
+import { PasteTextIcon, UploadPhotoIcon } from '../../src/components/Icons';
 
 interface SocialRow {
   network: string;
@@ -62,13 +63,13 @@ export default function ManualEntryScreen() {
   const bubbles = useStore(s => s.bubbles);
   const addContact = useStore(s => s.addContact);
   const updateContact = useStore(s => s.updateContact);
+  const deleteContact = useStore(s => s.deleteContact);
   const applyBubbleAssignments = useStore(s => s.applyBubbleAssignments);
 
   const [name, setName] = useState(contact?.name || '');
   const [email, setEmail] = useState(contact?.email || '');
   const [phone, setPhone] = useState(contact?.phone || '');
   const [birthday, setBirthday] = useState(contact?.birthday || '');
-  const [noteText, setNoteText] = useState(contact?.notes?.[0]?.text || '');
   const [photoSrc, setPhotoSrc] = useState(contact?.image || '');
   const [socialRows, setSocialRows] = useState<SocialRow[]>(() => {
     if (!contact) return [{ network: '', handle: '' }];
@@ -86,6 +87,7 @@ export default function ManualEntryScreen() {
     return new Set(bubbles.filter(b => b.contactIds.includes(parsedContactId!)).map(b => b.id));
   });
   const [status, setStatus] = useState('');
+  const [confirmVisible, setConfirmVisible] = useState(false);
   const headerInset = useHeaderInset();
 
   const pickPhoto = useCallback(async () => {
@@ -107,7 +109,6 @@ export default function ManualEntryScreen() {
     }
 
     const socialLinks = socialRows.filter(r => r.network || r.handle);
-    const newNotes = noteText.trim() ? [{ date: getTodayNoteDate(), text: noteText.trim() }] : [];
 
     if (isEdit && parsedContactId) {
       updateContact(parsedContactId, {
@@ -117,7 +118,6 @@ export default function ManualEntryScreen() {
         birthday: birthday.trim() || undefined,
         image: photoSrc || undefined,
         socialLinks,
-        notes: newNotes,
       });
       applyBubbleAssignments(parsedContactId, selectedBubbleIds);
       setStatus('Contact saved.');
@@ -132,13 +132,19 @@ export default function ManualEntryScreen() {
         image: photoSrc || undefined,
         color: getImportedContactColor(allContacts.length),
         socialLinks,
-        notes: newNotes,
       });
       applyBubbleAssignments(newContact.id, selectedBubbleIds);
       setStatus('Contact created.');
       router.push(`/contact/${newContact.id}`);
     }
-  }, [name, email, phone, birthday, photoSrc, socialRows, noteText, isEdit, parsedContactId, selectedBubbleIds, addContact, updateContact, applyBubbleAssignments, router]);
+  }, [name, email, phone, birthday, photoSrc, socialRows, isEdit, parsedContactId, selectedBubbleIds, addContact, updateContact, applyBubbleAssignments, router]);
+
+  const handleDelete = useCallback(() => {
+    if (!parsedContactId) return;
+    setConfirmVisible(false);
+    deleteContact(parsedContactId);
+    router.replace('/');
+  }, [deleteContact, parsedContactId, router]);
 
   const toggleBubble = useCallback((id: string) => {
     setSelectedBubbleIds(prev => {
@@ -149,6 +155,15 @@ export default function ManualEntryScreen() {
     });
   }, []);
 
+  const hasStartedManualEntry = isEdit || Boolean(
+    name.trim()
+    || email.trim()
+    || phone.trim()
+    || birthday.trim()
+    || socialRows.some(row => row.network.trim() || row.handle.trim())
+    || selectedBubbleIds.size > 0
+  );
+
   const avatarInitials = name ? initials(name) : null;
 
   return (
@@ -157,7 +172,10 @@ export default function ManualEntryScreen() {
         title={isEdit ? 'Edit Contact' : 'New Contact'}
         showBack
         backStyle="pill"
-        onBack={() => router.back()}
+        onBack={() => {
+          if (isEdit) router.back();
+          else router.replace('/');
+        }}
         centerTitle
       />
 
@@ -166,6 +184,32 @@ export default function ManualEntryScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: headerInset }]}
         keyboardShouldPersistTaps="handled"
       >
+        {!isEdit && (
+          <View style={styles.importActions}>
+            <TouchableOpacity
+              style={styles.importAction}
+              onPress={() => router.push('/add-contact/photo')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.importActionIcon}>
+                <UploadPhotoIcon size={28} color={Colors.text} />
+              </View>
+              <Text style={styles.importActionText}>Upload Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.importAction}
+              onPress={() => router.push('/add-contact/paste')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.importActionIcon}>
+                <PasteTextIcon size={28} color={Colors.text} />
+              </View>
+              <Text style={styles.importActionText}>Paste Text</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity style={styles.avatarBtn} onPress={pickPhoto} activeOpacity={0.8}>
           {photoSrc ? (
             <Image source={{ uri: photoSrc }} style={styles.avatarImg} />
@@ -174,19 +218,6 @@ export default function ManualEntryScreen() {
           )}
           <Text style={styles.avatarHint}>Tap to upload</Text>
         </TouchableOpacity>
-
-        <View style={styles.demoPhotos}>
-          {DEMO_PROFILE_IMAGES.map((src, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={[styles.demoPhoto, photoSrc === src && styles.demoPhotoSelected]}
-              onPress={() => setPhotoSrc(src)}
-              activeOpacity={0.7}
-            >
-              <Image source={{ uri: src }} style={styles.demoPhotoImg} />
-            </TouchableOpacity>
-          ))}
-        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Contact Information</Text>
@@ -267,22 +298,53 @@ export default function ManualEntryScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Notes</Text>
-          <Field label="First note" value={noteText} onChangeText={setNoteText} placeholder="Where you met, what to remember..." multiline />
-        </View>
-
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => router.back()} activeOpacity={0.7}>
             <Text style={styles.actionBtnText}>{isEdit ? 'Cancel' : 'Clear'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleSubmit} activeOpacity={0.7}>
-            <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>{isEdit ? 'Save Contact' : 'Create Contact'}</Text>
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              styles.actionBtnPrimary,
+              !hasStartedManualEntry && styles.actionBtnPrimaryMuted,
+            ]}
+            onPress={handleSubmit}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.actionBtnText,
+                styles.actionBtnPrimaryText,
+                !hasStartedManualEntry && styles.actionBtnPrimaryTextMuted,
+              ]}
+            >
+              {isEdit ? 'Save Contact' : 'Create Contact'}
+            </Text>
           </TouchableOpacity>
         </View>
 
+        {isEdit && (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.dangerBtn]}
+            onPress={() => setConfirmVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dangerBtnText}>Delete Contact</Text>
+          </TouchableOpacity>
+        )}
+
         {status ? <Text style={styles.status}>{status}</Text> : null}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={`Delete ${contact?.name || 'contact'}?`}
+        message="This will permanently remove this contact and remove them from all bubbles."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 }
@@ -291,6 +353,34 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.appBg },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.lg, gap: 12, paddingBottom: 48 },
+  importActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  importAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    minHeight: 56,
+    paddingHorizontal: 14,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.cardBg,
+    borderWidth: 1,
+    borderColor: Colors.stroke,
+  },
+  importActionIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  importActionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
   avatarBtn: {
     width: 88, height: 88, borderRadius: 44,
     backgroundColor: '#4A5FA8',
@@ -305,10 +395,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)', textAlign: 'center',
     color: 'white', fontSize: 11, paddingVertical: 3,
   },
-  demoPhotos: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginBottom: 4 },
-  demoPhoto: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
-  demoPhotoSelected: { borderColor: Colors.primarySolid },
-  demoPhotoImg: { width: 40, height: 40, borderRadius: 20 },
   card: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg, borderWidth: 1,
@@ -342,7 +428,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.inputBorder,
   },
   actionBtnPrimary: { backgroundColor: Colors.primarySolid, borderColor: Colors.primarySolid },
+  actionBtnPrimaryMuted: {
+    backgroundColor: Colors.surfaceAlt,
+    borderColor: Colors.stroke,
+  },
   actionBtnText: { fontSize: 16, fontWeight: '500', color: Colors.text },
   actionBtnPrimaryText: { color: Colors.inverseText },
+  actionBtnPrimaryTextMuted: { color: Colors.textMuted },
+  dangerBtn: {
+    backgroundColor: '#FBE8E6',
+    borderColor: '#F0C3BE',
+    flex: 0,
+  },
+  dangerBtnText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#d9534f',
+  },
   status: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginTop: 4 },
 });

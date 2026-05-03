@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, LayoutChangeEvent, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, LayoutChangeEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../../src/store';
 import { Header, useHeaderInset } from '../../src/components/Header';
@@ -10,6 +10,7 @@ import { SelectionSheet } from '../../src/components/SelectionSheet';
 import { BubbleColorKey, Colors } from '../../src/theme';
 import { ContactModeButton } from '../../src/components/ContactModeButton';
 import { GlassIconButton } from '../../src/components/GlassIconButton';
+import { BackChevronIcon } from '../../src/components/Icons';
 
 export default function BubbleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -94,7 +95,7 @@ export default function BubbleDetailScreen() {
         leftSlot={(
           <>
             <GlassIconButton onPress={() => router.back()}>
-              <Text style={styles.headerBackGlyph}>{"\u2039"}</Text>
+              <BackChevronIcon size={20} color={Colors.textMuted} />
             </GlassIconButton>
             <ContactModeButton
               active={mode === 'contact'}
@@ -107,7 +108,13 @@ export default function BubbleDetailScreen() {
       />
 
       {mode === 'bubble' ? (
-        <View style={styles.chartContainer} onLayout={handleChartLayout}>
+        <View
+          style={[
+            styles.chartContainer,
+            { marginTop: headerInset, marginBottom: Math.max(bottomNavInset, 12) },
+          ]}
+          onLayout={handleChartLayout}
+        >
           {chartSize.width > 0 && (
             <BubbleChart
               chartWidth={chartSize.width}
@@ -158,9 +165,6 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     flex: 1,
-    marginHorizontal: 17,
-    marginTop: 12,
-    marginBottom: 12,
   },
   list: {
     flex: 1,
@@ -172,11 +176,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.textMuted,
     marginTop: 40,
-  },
-  headerBackGlyph: {
-    color: Colors.text,
-    fontSize: 28,
-    lineHeight: 28,
-    marginTop: -2,
   },
 });

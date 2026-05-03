@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { initials } from '../store';
 import { Colors } from '../theme';
@@ -6,7 +6,7 @@ import { Colors } from '../theme';
 interface AvatarProps {
   name: string;
   color: string;
-  image?: string;
+  image?: string | number;
   size: number;
   style?: ViewStyle;
   onPress?: () => void;
@@ -18,6 +18,10 @@ export function Avatar({ name, color, image, size, style, onPress, onLongPress, 
   const [imageError, setImageError] = useState(false);
   const fontSize = Math.max(10, Math.floor(size * 0.35));
   const borderWidth = showBorder ? Math.max(1.5, size * 0.04) : 0;
+  const imageSource = useMemo(() => {
+    if (!image) return null;
+    return typeof image === 'string' ? { uri: image } : image;
+  }, [image]);
 
   const containerStyle: ViewStyle = {
     width: size,
@@ -33,9 +37,9 @@ export function Avatar({ name, color, image, size, style, onPress, onLongPress, 
     }),
   };
 
-  const content = image && !imageError ? (
+  const content = imageSource && !imageError ? (
     <Image
-      source={{ uri: image }}
+      source={imageSource}
       style={{ width: size, height: size, borderRadius: size / 2 }}
       onError={() => setImageError(true)}
     />

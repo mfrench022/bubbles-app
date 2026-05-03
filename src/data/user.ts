@@ -1,18 +1,21 @@
+import { SocialLink } from './contacts';
+
 export interface UserProfile {
   name: string;
   email: string;
   phone: string;
   color: string;
-  image?: string;
+  image?: string | number;
   slack?: string;
   teams?: string;
   birthday?: string;
   instagram?: string;
   twitter?: string;
   linkedin?: string;
+  socialLinks?: SocialLink[];
 }
 
-export const USER_PROFILE: UserProfile = {
+export const DEFAULT_USER_PROFILE: UserProfile = {
   name: 'Michael French',
   email: 'mfrench@gmail.com',
   phone: '+1 (317) 123-4567',
@@ -25,6 +28,8 @@ export const USER_PROFILE: UserProfile = {
   twitter: '@michaelfrench.co',
   linkedin: 'linkedin.com/MichaelFrench21',
 };
+
+export const USER_PROFILE = DEFAULT_USER_PROFILE;
 
 export const DEMO_PROFILE_IMAGES = [
   'https://randomuser.me/api/portraits/women/44.jpg',

@@ -11,6 +11,7 @@ type NavTab = 'bubbles' | 'add' | 'profile';
 export const BOTTOM_NAV_SHELL_HEIGHT = 78;
 export const BOTTOM_NAV_BOTTOM_GUTTER = 10;
 export const BOTTOM_NAV_SIDE_PADDING = 14;
+export const BOTTOM_NAV_TOP_PADDING = 26;
 export const BOTTOM_NAV_SCROLL_CLEARANCE = 46;
 
 interface BottomNavProps {
@@ -25,6 +26,15 @@ export function useBottomNavInset() {
     BOTTOM_NAV_SHELL_HEIGHT
     + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER)
     + BOTTOM_NAV_SCROLL_CLEARANCE
+  );
+}
+
+export function useBottomNavDockInset() {
+  const insets = useSafeAreaInsets();
+  return (
+    BOTTOM_NAV_SHELL_HEIGHT
+    + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER)
+    + BOTTOM_NAV_TOP_PADDING
   );
 }
 
@@ -68,21 +78,21 @@ export function BottomNav({ active, onPress }: BottomNavProps) {
         />
 
         <TouchableOpacity
-          style={[styles.btn, active === 'bubbles' && styles.btnActive]}
-          onPress={() => onPress('bubbles')}
-          activeOpacity={0.7}
-        >
-          {active === 'bubbles' && <View style={styles.btnActiveGlass} />}
-          <BubblesIcon size={28} color={active === 'bubbles' ? Colors.text : Colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.btn, active === 'add' && styles.btnActive]}
           onPress={() => onPress('add')}
           activeOpacity={0.7}
         >
           {active === 'add' && <View style={styles.btnActiveGlass} />}
           <AddIcon size={30} color={active === 'add' ? Colors.text : Colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.btn, active === 'bubbles' && styles.btnActive]}
+          onPress={() => onPress('bubbles')}
+          activeOpacity={0.7}
+        >
+          {active === 'bubbles' && <View style={styles.btnActiveGlass} />}
+          <BubblesIcon size={28} color={active === 'bubbles' ? Colors.text : Colors.textMuted} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -106,7 +116,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 60,
     paddingHorizontal: BOTTOM_NAV_SIDE_PADDING,
-    paddingTop: 26,
+    paddingTop: BOTTOM_NAV_TOP_PADDING,
   },
   shell: {
     position: 'relative',

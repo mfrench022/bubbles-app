@@ -14,8 +14,6 @@ export default function AddContactLayout() {
       <Stack.Screen name="manual" />
       <Stack.Screen name="paste" />
       <Stack.Screen name="photo" />
-      <Stack.Screen name="cloud" />
-      <Stack.Screen name="bubble-tap" />
     </Stack>
   );
 }

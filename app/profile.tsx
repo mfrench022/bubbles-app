@@ -1,54 +1,70 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
-import { USER_PROFILE } from '../src/data/user';
 import { Header, useHeaderInset } from '../src/components/Header';
 import { Avatar } from '../src/components/Avatar';
-import { useBottomNavInset } from '../src/components/BottomNav';
+import { useBottomNavDockInset } from '../src/components/BottomNav';
 import { InfoCard, InfoRow } from '../src/components/InfoCard';
 import { BubbleTags } from '../src/components/BubbleTags';
-import { ConfirmDialog } from '../src/components/ConfirmDialog';
-import { Colors, Radius, Shadows, Spacing } from '../src/theme';
+import { ChevronDownIcon } from '../src/components/Icons';
+import { Colors, Radius, Shadows, Spacing, Typography } from '../src/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const bubbles = useStore(s => s.bubbles);
-  const reset = useStore(s => s.reset);
-  const bottomNavInset = useBottomNavInset();
+  const userProfile = useStore(s => s.userProfile);
+  const bottomNavInset = useBottomNavDockInset();
   const headerInset = useHeaderInset();
-  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [bubblesExpanded, setBubblesExpanded] = useState(false);
 
   const topLevelBubbles = bubbles.filter(b => !b.parentId);
   const bubbleLabels = topLevelBubbles.map(b => b.label.replace(/\n/g, ' '));
+  const bubbleIds = topLevelBubbles.map(b => b.id);
 
   const contactRows: InfoRow[] = [
-    { icon: 'email', text: USER_PROFILE.email },
-    { icon: 'phone', text: USER_PROFILE.phone },
-    USER_PROFILE.birthday && { icon: 'birthday', text: USER_PROFILE.birthday },
+    { icon: 'email', text: userProfile.email },
+    { icon: 'phone', text: userProfile.phone },
+    userProfile.birthday && { icon: 'birthday', text: userProfile.birthday },
   ].filter(Boolean) as InfoRow[];
 
   const socialRows: InfoRow[] = [
-    USER_PROFILE.slack && { icon: 'slack', text: `Slack ${USER_PROFILE.slack}` },
-    USER_PROFILE.teams && { icon: 'teams', text: `Teams ${USER_PROFILE.teams}` },
-    USER_PROFILE.instagram && { icon: 'instagram', text: `Instagram ${USER_PROFILE.instagram}` },
-    USER_PROFILE.twitter && { icon: 'twitter', text: `Twitter ${USER_PROFILE.twitter}` },
-    USER_PROFILE.linkedin && { icon: 'linkedin', text: `LinkedIn ${USER_PROFILE.linkedin}` },
+    userProfile.slack && { icon: 'slack', text: `Slack ${userProfile.slack}`, label: 'Slack ', value: userProfile.slack, hideIcon: true },
+    userProfile.teams && { icon: 'teams', text: `Teams ${userProfile.teams}`, label: 'Teams ', value: userProfile.teams, hideIcon: true },
+    userProfile.instagram && { icon: 'instagram', text: `Instagram ${userProfile.instagram}`, label: 'Instagram ', value: userProfile.instagram, hideIcon: true },
+    userProfile.twitter && { icon: 'twitter', text: `Twitter ${userProfile.twitter}`, label: 'Twitter ', value: userProfile.twitter, hideIcon: true },
+    userProfile.linkedin && { icon: 'linkedin', text: `LinkedIn ${userProfile.linkedin}`, label: 'LinkedIn ', value: userProfile.linkedin, hideIcon: true },
+    ...(userProfile.socialLinks?.map(link => ({
+      icon: 'social' as const,
+      text: [link.network, link.handle].filter(Boolean).join(' '),
+      label: link.network ? `${link.network} ` : undefined,
+      value: link.handle,
+      hideIcon: true,
+    })) || []),
   ].filter(Boolean) as InfoRow[];
 
-  const handleReset = () => {
-    setConfirmVisible(false);
-    reset();
-    router.replace('/');
-  };
+  const handleShare = useCallback(async () => {
+    const shareLines = [
+      userProfile.name,
+      userProfile.email,
+      userProfile.phone,
+      userProfile.birthday ? `Birthday: ${userProfile.birthday}` : null,
+    ].filter(Boolean);
+
+    try {
+      await Share.share({
+        title: `${userProfile.name}'s contact card`,
+        message: shareLines.join('\n'),
+      });
+    } catch {
+      // Ignore share sheet dismiss and platform share errors on this lightweight action.
+    }
+  }, [userProfile]);
 
   return (
     <View style={styles.screen}>
       <Header
         title="My Profile"
-        showBack
-        backStyle="pill"
-        onBack={() => router.back()}
         centerTitle
       />
 
@@ -58,48 +74,78 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Avatar
-          name={USER_PROFILE.name}
-          color={USER_PROFILE.color}
-          image={typeof USER_PROFILE.image === 'number'
-            ? undefined
-            : USER_PROFILE.image}
+          name={userProfile.name}
+          color={userProfile.color}
+          image={userProfile.image}
           size={88}
           style={styles.avatar}
         />
 
         {bubbleLabels.length > 0 && (
-          <BubbleTags labels={bubbleLabels} />
+          <View style={styles.bubblesCard}>
+            <TouchableOpacity
+              style={styles.bubblesHeader}
+              onPress={() => setBubblesExpanded(current => !current)}
+              activeOpacity={0.7}
+            >
+              <View>
+                <Text style={styles.bubblesEyebrow}>Bubbles</Text>
+                <Text style={styles.bubblesTitle}>
+                  {bubbleLabels.length} {bubbleLabels.length === 1 ? 'bubble' : 'bubbles'}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.chevronWrap,
+                  bubblesExpanded && styles.chevronWrapExpanded,
+                ]}
+              >
+                <ChevronDownIcon size={18} color={Colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+
+            {bubblesExpanded ? (
+              <View style={styles.bubblePreviewWrap}>
+                <BubbleTags
+                  labels={bubbleLabels}
+                  bubbleIds={bubbleIds}
+                  onTagPress={bubbleId => router.push(`/bubble/${bubbleId}`)}
+                  style={styles.bubbleTags}
+                />
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.bubblePreviewScroller}
+              >
+                <BubbleTags
+                  labels={bubbleLabels}
+                  bubbleIds={bubbleIds}
+                  onTagPress={bubbleId => router.push(`/bubble/${bubbleId}`)}
+                  style={styles.bubblePreviewTags}
+                />
+              </ScrollView>
+            )}
+          </View>
         )}
 
         <InfoCard title="Contact Information" rows={contactRows} />
-        <InfoCard title="Social Links" rows={socialRows} />
+        <InfoCard title="Links" rows={socialRows} />
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/profile-edit')}
+            activeOpacity={0.7}
+          >
             <Text style={styles.actionBtnText}>Edit Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleShare} activeOpacity={0.7}>
             <Text style={styles.actionBtnText}>Share Contact</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.dangerBtn]}
-          onPress={() => setConfirmVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.dangerBtnText}>Reset Data</Text>
-        </TouchableOpacity>
       </ScrollView>
-      <ConfirmDialog
-        visible={confirmVisible}
-        title="Reset App Data?"
-        message="This will restore all contacts and bubbles to the original demo data. Your changes will be lost."
-        confirmLabel="Reset"
-        danger
-        onConfirm={handleReset}
-        onCancel={() => setConfirmVisible(false)}
-      />
     </View>
   );
 }
@@ -120,11 +166,64 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
+  bubblesCard: {
+    marginHorizontal: 17,
+    marginBottom: 12,
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.stroke,
+    overflow: 'hidden',
+    ...Shadows.card,
+  },
+  bubblesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+  },
+  bubblesEyebrow: {
+    ...Typography.cardTitle,
+    paddingBottom: Spacing.xs,
+  },
+  bubblesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  chevronWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceAlt,
+  },
+  chevronWrapExpanded: {
+    transform: [{ rotate: '180deg' }],
+  },
+  bubbleTags: {
+    marginHorizontal: Spacing.lg,
+    marginTop: 0,
+    marginBottom: Spacing.lg,
+  },
+  bubblePreviewWrap: {
+    overflow: 'hidden',
+  },
+  bubblePreviewScroller: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+  },
+  bubblePreviewTags: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+    flexWrap: 'nowrap',
+  },
   actions: {
     flexDirection: 'row',
     gap: 8,
     marginHorizontal: 17,
-    marginBottom: 12,
   },
   actionBtn: {
     flex: 1,
@@ -141,17 +240,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: Colors.text,
-  },
-  dangerBtn: {
-    marginHorizontal: 17,
-    flex: 0,
-    backgroundColor: '#FBE8E6',
-    borderColor: '#F0C3BE',
-    marginBottom: 16,
-  },
-  dangerBtnText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#d9534f',
   },
 });

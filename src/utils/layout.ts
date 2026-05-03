@@ -43,6 +43,7 @@ export function layoutAvatars(
     minAvatarSize?: number;
     spacing?: number;
     edgePadding?: number;
+    collisionScale?: number;
   } = {}
 ): AvatarLayout {
   if (count === 0) return { avatarSize: initialAvatarSize, offsets: [] };
@@ -52,13 +53,15 @@ export function layoutAvatars(
     minAvatarSize = 18,
     spacing = 8,
     edgePadding = 10,
+    collisionScale = 1,
   } = options;
 
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
   for (let avatarSize = Math.round(initialAvatarSize); avatarSize >= minAvatarSize; avatarSize -= 2) {
     const avatarRadius = avatarSize / 2;
-    const maxR = bubbleRadius - avatarRadius - edgePadding;
+    const collisionRadius = avatarRadius * collisionScale;
+    const maxR = bubbleRadius - collisionRadius - edgePadding;
     if (maxR <= 0) continue;
 
     const positions: AvatarOffset[] = [];
@@ -71,11 +74,11 @@ export function layoutAvatars(
       const candidate: Circle = {
         x: r * Math.cos(angle),
         y: r * Math.sin(angle),
-        r: avatarRadius,
+        r: collisionRadius,
       };
 
       const insideBubble =
-        Math.hypot(candidate.x, candidate.y) + avatarRadius <= bubbleRadius - edgePadding;
+        Math.hypot(candidate.x, candidate.y) + collisionRadius <= bubbleRadius - edgePadding;
       if (!insideBubble) continue;
 
       const hitsExclusion = exclusionCircles.some(ex =>
@@ -84,7 +87,7 @@ export function layoutAvatars(
       if (hitsExclusion) continue;
 
       const hitsAvatar = positions.some(pos =>
-        circlesOverlap(candidate, { ...pos, r: avatarRadius }, spacing)
+        circlesOverlap(candidate, { ...pos, r: collisionRadius }, spacing)
       );
       if (hitsAvatar) continue;
 
@@ -321,6 +324,31 @@ function seedCircularBubbleLayout(
   });
 }
 
+function seedCircularBubbleLayoutInParent(
+  circles: BubbleCircle[],
+  parent: BubbleCircle,
+  gap: number
+) {
+  if (!circles.length) return;
+
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const maxRadius = circles.reduce((max, circle) => Math.max(max, circle.r), 0);
+  const radialStep = maxRadius * 0.9 + gap;
+
+  circles.forEach((circle, index) => {
+    if (index === 0) {
+      circle.cx = parent.cx;
+      circle.cy = parent.cy;
+      return;
+    }
+
+    const ringRadius = Math.sqrt(index) * radialStep;
+    const angle = index * goldenAngle;
+    circle.cx = parent.cx + Math.cos(angle) * ringRadius;
+    circle.cy = parent.cy + Math.sin(angle) * ringRadius;
+  });
+}
+
 export function layoutTopLevelBubbles(
   bubbles: Array<{ id: string; x: number; y: number; size: number; parentId?: string; [key: string]: any }>,
   chartW: number,
@@ -386,8 +414,10 @@ export function layoutNestedBubbles(
     countSlope: 0.025,
   });
 
+  seedCircularBubbleLayoutInParent(circles, parentCircle, gap);
   circles.forEach(c => clampCircleToParent(c, parentCircle, padding));
   resolveBubbleCollisions(circles, gap, c => clampCircleToParent(c, parentCircle, padding));
+  circles.forEach(c => clampCircleToParent(c, parentCircle, padding));
 
   return circles.map(c => pxCircleToBubble(c, chartW, chartH, sizeReferenceW)) as Array<{ id: string; x: number; y: number; size: number; [key: string]: any }>;
 }

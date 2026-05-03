@@ -14,10 +14,10 @@ export default function RootLayout() {
   const router = useRouter();
   const initialize = useStore(s => s.initialize);
   const bubbles = useStore(s => s.bubbles);
-  const showBottomNav = pathname !== '/add-contact/manual';
+  const showBottomNav = pathname !== '/add-contact/manual' && pathname !== '/profile-edit';
   const activeTab = pathname.startsWith('/add-contact')
     ? 'add'
-    : pathname === '/profile'
+    : pathname === '/profile' || pathname === '/profile-edit'
       ? 'profile'
       : 'bubbles';
   const bubbleDetailMatch = pathname.match(/^\/bubble\/(.+)$/);
@@ -50,10 +50,8 @@ export default function RootLayout() {
                 <Stack.Screen name="bubble/[id]" />
                 <Stack.Screen name="contact/[id]" />
                 <Stack.Screen name="profile" />
-                <Stack.Screen
-                  name="add-contact"
-                  options={{ animation: 'fade_from_bottom' }}
-                />
+                <Stack.Screen name="profile-edit" />
+                <Stack.Screen name="add-contact" />
               </Stack>
             </View>
 
@@ -63,7 +61,7 @@ export default function RootLayout() {
                 backgroundColors={activeBackgroundColors}
                 onPress={tab => {
                   if (tab === 'bubbles') router.replace('/');
-                  else if (tab === 'add') router.replace('/add-contact');
+                  else if (tab === 'add') router.replace('/add-contact/manual');
                   else router.replace('/profile');
                 }}
               />

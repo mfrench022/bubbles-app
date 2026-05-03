@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Contact, DEFAULT_CONTACTS } from '../data/contacts';
 import { Bubble, DEFAULT_BUBBLES } from '../data/bubbles';
+import { DEFAULT_USER_PROFILE, UserProfile } from '../data/user';
 import { saveAppData, loadAppData, clearAppData } from '../utils/storage';
 import { BubbleColorKey } from '../theme';
 
@@ -74,6 +75,17 @@ function cloneDefaultBubbles(): Bubble[] {
   return JSON.parse(JSON.stringify(DEFAULT_BUBBLES));
 }
 
+function cloneDefaultUserProfile(): UserProfile {
+  return { ...DEFAULT_USER_PROFILE };
+}
+
+function mergeUserProfile(storedProfile?: Partial<UserProfile> | null): UserProfile {
+  return {
+    ...cloneDefaultUserProfile(),
+    ...(storedProfile || {}),
+  };
+}
+
 function mergeMissingDefaultContacts(storedContacts: Contact[]): Contact[] {
   const contactsById = new Map(storedContacts.map(contact => [contact.id, contact]));
   cloneDefaultContacts().forEach(contact => {
@@ -115,6 +127,7 @@ function mergeMissingDefaultBubbles(storedBubbles: Bubble[]): Bubble[] {
 interface AppState {
   contacts: Contact[];
   bubbles: Bubble[];
+  userProfile: UserProfile;
   initialized: boolean;
 
   initialize: () => Promise<void>;
@@ -130,6 +143,7 @@ interface AppState {
   addContact: (contact: Omit<Contact, 'id'>) => Contact;
   updateContact: (id: number, updates: Partial<Contact>) => void;
   deleteContact: (id: number) => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
 
   addBubble: (bubble: Omit<Bubble, 'id'> & { id?: string }) => Bubble;
   updateBubble: (id: string, updates: Partial<Bubble>) => void;
@@ -148,6 +162,7 @@ interface AppState {
 export const useStore = create<AppState>((set, get) => ({
   contacts: JSON.parse(JSON.stringify(DEFAULT_CONTACTS)),
   bubbles: normalizeBubbleSizes(JSON.parse(JSON.stringify(DEFAULT_BUBBLES))),
+  userProfile: cloneDefaultUserProfile(),
   initialized: false,
 
   initialize: async () => {
@@ -155,30 +170,34 @@ export const useStore = create<AppState>((set, get) => ({
     if (stored) {
       const contacts = mergeMissingDefaultContacts(stored.contacts || []);
       const bubbles = normalizeBubbleSizes(mergeMissingDefaultBubbles(stored.bubbles || []));
+      const userProfile = mergeUserProfile(stored.userProfile);
       generatedBubbleCount = Math.max(1, getHighestGeneratedBubbleNumber(bubbles) + 1);
-      set({ contacts, bubbles, initialized: true });
-      saveAppData({ contacts, bubbles });
+      set({ contacts, bubbles, userProfile, initialized: true });
+      saveAppData({ contacts, bubbles, userProfile });
     } else {
       const contacts = cloneDefaultContacts();
       const bubbles = normalizeBubbleSizes(cloneDefaultBubbles());
+      const userProfile = cloneDefaultUserProfile();
       generatedBubbleCount = getHighestGeneratedBubbleNumber(bubbles) + 1;
-      set({ contacts, bubbles, initialized: true });
+      set({ contacts, bubbles, userProfile, initialized: true });
     }
   },
 
   save: () => {
-    const { contacts, bubbles } = get();
-    saveAppData({ contacts, bubbles });
+    const { contacts, bubbles, userProfile } = get();
+    saveAppData({ contacts, bubbles, userProfile });
   },
 
   reset: () => {
     clearAppData();
     const contacts = cloneDefaultContacts();
     const bubbles = normalizeBubbleSizes(cloneDefaultBubbles());
+    const userProfile = cloneDefaultUserProfile();
     generatedBubbleCount = getHighestGeneratedBubbleNumber(bubbles) + 1;
     set({
       contacts,
       bubbles,
+      userProfile,
     });
   },
 
@@ -261,6 +280,13 @@ export const useStore = create<AppState>((set, get) => ({
       bubbles: normalizeBubbleSizes(
         state.bubbles.map(b => b.id === id ? ensureBubbleArrays({ ...b, ...updates }) : b)
       ),
+    }));
+    get().save();
+  },
+
+  updateUserProfile: (updates) => {
+    set(state => ({
+      userProfile: { ...state.userProfile, ...updates },
     }));
     get().save();
   },

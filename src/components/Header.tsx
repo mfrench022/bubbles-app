@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard,
   FlatList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ interface HeaderProps {
   rightSlot?: React.ReactNode;
   centerTitle?: boolean;
   leftSlot?: React.ReactNode;
+  reserveSideRails?: boolean;
 }
 
 export const HEADER_ROW_HEIGHT = 46;
@@ -44,10 +45,12 @@ export function Header({
   rightSlot,
   centerTitle = false,
   leftSlot,
+  reserveSideRails = true,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const contacts = useStore(s => s.contacts);
 
   const topPad = Math.max(36, insets.top + 10);
@@ -68,7 +71,29 @@ export function Header({
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
     setSearchQuery('');
+    setSearchFocused(false);
   }, []);
+
+  const dismissSearchKeyboard = useCallback(() => {
+    closeSearch();
+    Keyboard.dismiss();
+  }, [closeSearch]);
+
+  useEffect(() => {
+    const collapseSearch = () => {
+      if (searchOpen) {
+        closeSearch();
+      }
+    };
+
+    const willHideSubscription = Keyboard.addListener('keyboardWillHide', collapseSearch);
+    const didHideSubscription = Keyboard.addListener('keyboardDidHide', collapseSearch);
+
+    return () => {
+      willHideSubscription.remove();
+      didHideSubscription.remove();
+    };
+  }, [searchOpen, closeSearch]);
 
   const handleResultPress = useCallback((contactId: number) => {
     closeSearch();
@@ -92,30 +117,32 @@ export function Header({
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             placeholder="Search contacts"
             placeholderTextColor={Colors.textMuted}
             autoFocus
             returnKeyType="search"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClear}>
+          {searchFocused && (
+            <TouchableOpacity onPress={dismissSearchKeyboard} style={styles.searchClear}>
               <CloseIcon size={18} color={Colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       ) : (
         <View style={styles.row}>
-          <View style={styles.sideRail}>
+          <View style={[styles.sideRail, !reserveSideRails && styles.sideRailCollapsed]}>
             {leftSlot ? (
               <View style={styles.leftSlot}>{leftSlot}</View>
             ) : showBack ? (
               backStyle === 'arrow' ? (
                 <GlassIconButton onPress={onBack}>
-                  <BackChevronIcon size={20} />
+                  <BackChevronIcon size={20} color={Colors.textMuted} />
                 </GlassIconButton>
               ) : (
                 <GlassIconButton onPress={onBack}>
-                  <BackIcon size={20} />
+                  <BackIcon size={20} color={Colors.textMuted} />
                 </GlassIconButton>
               )
             ) : null}
@@ -145,7 +172,7 @@ export function Header({
             </View>
           </View>
 
-          <View style={[styles.sideRail, styles.sideRailRight]}>
+          <View style={[styles.sideRail, styles.sideRailRight, !reserveSideRails && styles.sideRailCollapsed]}>
             {showSearch ? (
               <GlassIconButton onPress={openSearch}>
                 <SearchIcon size={22} color={Colors.textMuted} />
@@ -218,6 +245,9 @@ const styles = StyleSheet.create({
     width: 110,
     minHeight: 46,
     justifyContent: 'center',
+  },
+  sideRailCollapsed: {
+    width: 0,
   },
   sideRailRight: {
     alignItems: 'flex-end',

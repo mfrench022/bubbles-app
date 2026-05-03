@@ -12,6 +12,9 @@ export type InfoIconKey = 'email' | 'phone' | 'birthday' | 'slack' | 'teams' |
 export interface InfoRow {
   icon: InfoIconKey;
   text: string;
+  label?: string;
+  value?: string;
+  hideIcon?: boolean;
   onPress?: () => void;
 }
 
@@ -51,12 +54,25 @@ export function InfoCard({ title, rows, style }: InfoCardProps) {
           activeOpacity={row.onPress ? 0.7 : 1}
           disabled={!row.onPress}
         >
-          <View style={styles.iconWrap}>
-            <RowIcon icon={row.icon} />
-          </View>
-          <Text style={styles.rowText} numberOfLines={2}>
-            {row.text}
-          </Text>
+          {!row.hideIcon && (
+            <View style={styles.iconWrap}>
+              <RowIcon icon={row.icon} />
+            </View>
+          )}
+          {row.label ? (
+            <View style={styles.socialRowContent}>
+              <Text style={styles.socialLabel} numberOfLines={1}>
+                {row.label}
+              </Text>
+              <Text style={styles.socialValue} numberOfLines={2}>
+                {row.value ?? ''}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.rowText} numberOfLines={2}>
+              {row.text}
+            </Text>
+          )}
         </TouchableOpacity>
       ))}
     </View>
@@ -105,5 +121,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     lineHeight: 22,
+  },
+  socialRowContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  socialLabel: {
+    width: '28%',
+    minWidth: 78,
+    paddingRight: Spacing.sm,
+    fontSize: 16,
+    lineHeight: 22,
+    color: Colors.text,
+    fontWeight: '700',
+  },
+  socialValue: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    color: Colors.text,
   },
 });
