@@ -52,8 +52,12 @@ export default function BubbleDetailScreen() {
   }, [router]);
 
   const handleBackgroundTap = useCallback(() => {
+    if (bubble?.parentId) {
+      router.replace(`/bubble/${bubble.parentId}`);
+      return;
+    }
     router.replace('/');
-  }, [router]);
+  }, [bubble?.parentId, router]);
 
   const handleCreateBubble = useCallback((name: string, contactIds: number[], colorKey: BubbleColorKey) => {
     if (!bubble) return;

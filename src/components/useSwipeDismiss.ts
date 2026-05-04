@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, PanResponder } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated } from 'react-native';
 import { PanGestureHandlerGestureEvent, PanGestureHandlerStateChangeEvent, State } from 'react-native-gesture-handler';
 
-const SWIPE_DISMISS_DISTANCE = 90;
-const SWIPE_DISMISS_VELOCITY = 1;
+const SWIPE_DISMISS_DISTANCE = 56;
+const SWIPE_DISMISS_VELOCITY = 0.75;
 
 interface UseSwipeDismissOptions {
   visible: boolean;
@@ -12,14 +12,30 @@ interface UseSwipeDismissOptions {
 
 export function useSwipeDismiss({ visible, onDismiss }: UseSwipeDismissOptions) {
   const translateY = useRef(new Animated.Value(0)).current;
+  const isDismissingRef = useRef(false);
+  const currentValueRef = useRef(0);
+
+  useEffect(() => {
+    const listenerId = translateY.addListener(({ value }) => {
+      currentValueRef.current = value;
+    });
+    return () => {
+      translateY.removeListener(listenerId);
+    };
+  }, [translateY]);
 
   useEffect(() => {
     if (visible) {
+      isDismissingRef.current = false;
+      translateY.stopAnimation();
+      currentValueRef.current = 0;
       translateY.setValue(0);
     }
   }, [translateY, visible]);
 
   const resetPosition = () => {
+    if (isDismissingRef.current) return;
+    translateY.stopAnimation();
     Animated.spring(translateY, {
       toValue: 0,
       useNativeDriver: true,
@@ -29,24 +45,38 @@ export function useSwipeDismiss({ visible, onDismiss }: UseSwipeDismissOptions) 
   };
 
   const dismiss = () => {
-    Animated.timing(translateY, {
-      toValue: 420,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        translateY.setValue(0);
-        onDismiss();
-      }
+    if (isDismissingRef.current) return;
+    isDismissingRef.current = true;
+    translateY.stopAnimation(() => {
+      translateY.setValue(currentValueRef.current);
+      Animated.timing(translateY, {
+        toValue: 320,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        isDismissingRef.current = false;
+        if (finished) {
+          currentValueRef.current = 0;
+          translateY.setValue(0);
+          onDismiss();
+        }
+      });
     });
   };
 
   const handleGestureEvent = ({ nativeEvent }: PanGestureHandlerGestureEvent) => {
-    translateY.setValue(Math.max(0, nativeEvent.translationY));
+    if (isDismissingRef.current) return;
+    const nextValue = Math.max(0, nativeEvent.translationY);
+    currentValueRef.current = nextValue;
+    translateY.setValue(nextValue);
   };
 
   const handleGestureStateChange = ({ nativeEvent }: PanGestureHandlerStateChangeEvent) => {
+    if (isDismissingRef.current) return;
     if (nativeEvent.oldState !== State.ACTIVE) return;
+    const nextValue = Math.max(0, nativeEvent.translationY);
+    currentValueRef.current = nextValue;
+    translateY.setValue(nextValue);
     if (
       nativeEvent.translationY > SWIPE_DISMISS_DISTANCE ||
       nativeEvent.velocityY > SWIPE_DISMISS_VELOCITY * 1000
@@ -57,24 +87,7 @@ export function useSwipeDismiss({ visible, onDismiss }: UseSwipeDismissOptions) 
     resetPosition();
   };
 
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gestureState) =>
-      gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
-    onPanResponderMove: (_event, gestureState) => {
-      translateY.setValue(Math.max(0, gestureState.dy));
-    },
-    onPanResponderRelease: (_event, gestureState) => {
-      if (gestureState.dy > SWIPE_DISMISS_DISTANCE || gestureState.vy > SWIPE_DISMISS_VELOCITY) {
-        dismiss();
-        return;
-      }
-      resetPosition();
-    },
-    onPanResponderTerminate: resetPosition,
-  }), [translateY, onDismiss]);
-
   return {
-    panHandlers: panResponder.panHandlers,
     handleGestureEvent,
     handleGestureStateChange,
     animatedStyle: {

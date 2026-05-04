@@ -1,10 +1,14 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
+const baseUrl = process.env.EXPO_BASE_URL
+  ? `/${process.env.EXPO_BASE_URL.replace(/^\/+/, '').replace(/\/$/, '')}`
+  : '';
+
 const serviceWorkerBootstrap = `
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(error => {
+    navigator.serviceWorker.register('${baseUrl}/sw.js').catch(error => {
       console.error('Service worker registration failed:', error);
     });
   });
@@ -26,8 +30,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Bubbles" />
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href={`${baseUrl}/manifest.json`} />
+        <link rel="apple-touch-icon" href={`${baseUrl}/apple-touch-icon.png`} />
         <script dangerouslySetInnerHTML={{ __html: serviceWorkerBootstrap }} />
         <ScrollViewStyleReset />
       </head>

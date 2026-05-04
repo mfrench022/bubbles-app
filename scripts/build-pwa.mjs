@@ -7,6 +7,9 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const distDir = path.join(projectRoot, 'dist');
 const swPath = path.join(distDir, 'sw.js');
+const baseUrl = process.env.EXPO_BASE_URL
+  ? `/${process.env.EXPO_BASE_URL.replace(/^\/+/, '').replace(/\/$/, '')}`
+  : '';
 
 const PRECACHE_EXTENSIONS = new Set([
   '.css',
@@ -42,7 +45,7 @@ async function walk(dir) {
 
 function toPublicUrl(filePath) {
   const relativePath = path.relative(distDir, filePath).split(path.sep).join('/');
-  return `/${relativePath}`;
+  return `${baseUrl}/${relativePath}`.replace(/\/{2,}/g, '/');
 }
 
 function isPrecacheAsset(filePath) {
@@ -119,6 +122,7 @@ async function build() {
 
   const cacheVersion = Date.now().toString();
   const serviceWorkerSource = `const CACHE_NAME = 'bubbles-pwa-${cacheVersion}';
+const BASE_URL = ${JSON.stringify(baseUrl)};
 const PRECACHE_URLS = ${JSON.stringify(precacheUrls.sort(), null, 2)};
 const ROUTE_ALIASES = ${JSON.stringify(routeAliases, null, 2)};
 const DYNAMIC_ROUTE_FALLBACKS = ${JSON.stringify(dynamicRouteFallbacks, null, 2)};
@@ -152,7 +156,7 @@ function resolveNavigationTarget(pathname) {
     }
   }
 
-  return '/index.html';
+  return BASE_URL ? BASE_URL + '/index.html' : '/index.html';
 }
 
 async function cacheFirst(request) {
@@ -203,7 +207,7 @@ self.addEventListener('fetch', event => {
 
         const cache = await caches.open(CACHE_NAME);
         const fallbackTarget = resolveNavigationTarget(url.pathname);
-        return (await cache.match(fallbackTarget)) || (await cache.match('/index.html'));
+        return (await cache.match(fallbackTarget)) || (await cache.match(BASE_URL ? BASE_URL + '/index.html' : '/index.html'));
       })
     );
     return;
@@ -225,10 +229,22 @@ self.addEventListener('message', event => {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const normalizedManifest = {
     ...manifest,
-    start_url: manifest.start_url ?? '/',
-    scope: manifest.scope ?? '/',
+    id: baseUrl || manifest.id || '/',
+    start_url: baseUrl ? `${baseUrl}/` : manifest.start_url ?? '/',
+    scope: baseUrl ? `${baseUrl}/` : manifest.scope ?? '/',
+    icons: Array.isArray(manifest.icons)
+      ? manifest.icons.map(icon => ({
+          ...icon,
+          src:
+            typeof icon.src === 'string' && baseUrl && icon.src.startsWith('/')
+              ? `${baseUrl}${icon.src}`
+              : icon.src,
+        }))
+      : manifest.icons,
   };
   await writeFile(manifestPath, `${JSON.stringify(normalizedManifest, null, 2)}\n`);
+
+  await writeFile(path.join(distDir, '.nojekyll'), '');
 
   console.log(`Generated ${path.relative(projectRoot, swPath)} with ${precacheUrls.length} precached assets.`);
 }
