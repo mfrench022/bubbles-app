@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, PanResponder } from 'react-native';
+import { PanGestureHandlerGestureEvent, PanGestureHandlerStateChangeEvent, State } from 'react-native-gesture-handler';
 
 const SWIPE_DISMISS_DISTANCE = 90;
 const SWIPE_DISMISS_VELOCITY = 1;
@@ -40,6 +41,22 @@ export function useSwipeDismiss({ visible, onDismiss }: UseSwipeDismissOptions) 
     });
   };
 
+  const handleGestureEvent = ({ nativeEvent }: PanGestureHandlerGestureEvent) => {
+    translateY.setValue(Math.max(0, nativeEvent.translationY));
+  };
+
+  const handleGestureStateChange = ({ nativeEvent }: PanGestureHandlerStateChangeEvent) => {
+    if (nativeEvent.oldState !== State.ACTIVE) return;
+    if (
+      nativeEvent.translationY > SWIPE_DISMISS_DISTANCE ||
+      nativeEvent.velocityY > SWIPE_DISMISS_VELOCITY * 1000
+    ) {
+      dismiss();
+      return;
+    }
+    resetPosition();
+  };
+
   const panResponder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gestureState) =>
       gestureState.dy > 6 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
@@ -58,6 +75,8 @@ export function useSwipeDismiss({ visible, onDismiss }: UseSwipeDismissOptions) 
 
   return {
     panHandlers: panResponder.panHandlers,
+    handleGestureEvent,
+    handleGestureStateChange,
     animatedStyle: {
       transform: [{ translateY }],
     },

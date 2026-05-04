@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useStore } from '../store';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PanGestureHandler } from 'react-native-gesture-handler';
 import {
   BUBBLE_COLOR_OPTIONS,
   BubbleColorKey,
@@ -46,7 +47,7 @@ export function SelectionSheet({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(preselectedContactIds));
   const [colorKey, setColorKey] = useState<BubbleColorKey>(preselectedColorKey);
-  const { panHandlers, animatedStyle } = useSwipeDismiss({ visible, onDismiss: onCancel });
+  const { animatedStyle, handleGestureEvent, handleGestureStateChange } = useSwipeDismiss({ visible, onDismiss: onCancel });
 
   useEffect(() => {
     if (!visible) return;
@@ -82,9 +83,14 @@ export function SelectionSheet({
         <Pressable style={styles.backdrop} onPress={onCancel} />
         <View pointerEvents="box-none" style={styles.panelContainer}>
           <Animated.View style={[styles.panel, animatedStyle]}>
-            <View {...panHandlers} style={styles.dragHandle}>
-              <View style={styles.grabber} />
-            </View>
+            <PanGestureHandler
+              onGestureEvent={handleGestureEvent}
+              onHandlerStateChange={handleGestureStateChange}
+            >
+              <Animated.View style={styles.dragHandle}>
+                <View style={styles.grabber} />
+              </Animated.View>
+            </PanGestureHandler>
 
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
