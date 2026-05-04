@@ -1,16 +1,22 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, LayoutChangeEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store';
 import { Header, useHeaderInset } from '../../src/components/Header';
 import { BubbleChart } from '../../src/components/BubbleChart';
 import { ContactCard } from '../../src/components/ContactCard';
-import { useBottomNavInset } from '../../src/components/BottomNav';
+import {
+  BOTTOM_NAV_BOTTOM_GUTTER,
+  BOTTOM_NAV_SHELL_HEIGHT,
+  useBottomNavInset,
+} from '../../src/components/BottomNav';
 import { SelectionSheet } from '../../src/components/SelectionSheet';
 import { BubbleColorKey, Colors } from '../../src/theme';
 import { ContactModeButton } from '../../src/components/ContactModeButton';
 import { GlassIconButton } from '../../src/components/GlassIconButton';
-import { BackChevronIcon } from '../../src/components/Icons';
+import { PlusIcon } from '../../src/components/Icons';
+import { AddContactsSheet } from '../../src/components/AddContactsSheet';
 
 export default function BubbleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,14 +25,18 @@ export default function BubbleDetailScreen() {
   const contacts = useStore(s => s.contacts);
   const addBubble = useStore(s => s.addBubble);
   const updateBubble = useStore(s => s.updateBubble);
+  const addContactsToBubble = useStore(s => s.addContactsToBubble);
   const bottomNavInset = useBottomNavInset();
   const headerInset = useHeaderInset();
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<'bubble' | 'contact'>('bubble');
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetPreselectedIds, setSheetPreselectedIds] = useState<number[]>([]);
   const [sheetInitialName, setSheetInitialName] = useState('New Bubble');
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
+  const [addContactsVisible, setAddContactsVisible] = useState(false);
 
   const handleChartLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -39,6 +49,10 @@ export default function BubbleDetailScreen() {
 
   const handleAvatarTap = useCallback((contactId: number) => {
     router.push(`/contact/${contactId}`);
+  }, [router]);
+
+  const handleBackgroundTap = useCallback(() => {
+    router.replace('/');
   }, [router]);
 
   const handleCreateBubble = useCallback((name: string, contactIds: number[], colorKey: BubbleColorKey) => {
@@ -72,10 +86,28 @@ export default function BubbleDetailScreen() {
     setSheetVisible(true);
   }, [bubble]);
 
+  const handleAddContacts = useCallback((selectedContactIds: number[]) => {
+    if (!bubble || selectedContactIds.length === 0) return;
+    addContactsToBubble(bubble.id, selectedContactIds);
+    setAddContactsVisible(false);
+  }, [addContactsToBubble, bubble]);
+
+  const handleEditBubble = useCallback((name: string, contactIds: number[], colorKey: BubbleColorKey) => {
+    if (!bubble) return;
+    const descendantContactIds = Array.from(useStore.getState().getDescendantContactIds(bubble.id));
+    const nextContactIds = [...new Set([...contactIds, ...descendantContactIds])];
+    updateBubble(bubble.id, {
+      label: name,
+      colorKey,
+      contactIds: nextContactIds,
+    });
+    setEditSheetVisible(false);
+  }, [bubble, updateBubble]);
+
   if (!bubble) {
     return (
       <View style={styles.screen}>
-        <Header title="Bubble" showBack onBack={() => router.back()} centerTitle />
+        <Header title="Bubble" centerTitle />
         <Text style={styles.notFound}>Bubble not found.</Text>
       </View>
     );
@@ -84,6 +116,10 @@ export default function BubbleDetailScreen() {
   const contactsInBubble = bubble.contactIds
     .map(id => contacts.find(c => c.id === id))
     .filter(Boolean) as typeof contacts;
+  const availableContacts = useMemo(
+    () => contacts.filter(contact => !bubble.contactIds.includes(contact.id)),
+    [bubble.contactIds, contacts]
+  );
   const sortedContacts = [...contactsInBubble].sort((a, b) => a.name.localeCompare(b.name));
   const title = bubble.label.replace(/\n/g, ' ');
 
@@ -92,16 +128,12 @@ export default function BubbleDetailScreen() {
       <Header
         title={title}
         centerTitle
+        onTitlePress={() => setEditSheetVisible(true)}
         leftSlot={(
-          <>
-            <GlassIconButton onPress={() => router.back()}>
-              <BackChevronIcon size={20} color={Colors.textMuted} />
-            </GlassIconButton>
-            <ContactModeButton
-              active={mode === 'contact'}
-              onPress={() => setMode(prev => (prev === 'bubble' ? 'contact' : 'bubble'))}
-            />
-          </>
+          <ContactModeButton
+            active={mode === 'contact'}
+            onPress={() => setMode(prev => (prev === 'bubble' ? 'contact' : 'bubble'))}
+          />
         )}
         showSearch
         onSearchContactPress={cid => router.push(`/contact/${cid}`)}
@@ -121,6 +153,7 @@ export default function BubbleDetailScreen() {
               chartHeight={chartSize.height}
               onBubbleTap={handleSubBubbleTap}
               onAvatarTap={handleAvatarTap}
+              onBackgroundTap={handleBackgroundTap}
               filterBubbleId={id}
               onCreateBubbleRequest={handleCreateBubbleRequest}
             />
@@ -140,6 +173,18 @@ export default function BubbleDetailScreen() {
           )}
         />
       )}
+      {mode === 'bubble' ? (
+        <View
+          style={[
+            styles.floatingAddButton,
+            { bottom: BOTTOM_NAV_SHELL_HEIGHT + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER) + 22 },
+          ]}
+        >
+          <GlassIconButton onPress={() => setAddContactsVisible(true)} size={64}>
+            <PlusIcon size={28} color={Colors.textMuted} />
+          </GlassIconButton>
+        </View>
+      ) : null}
       <SelectionSheet
         visible={sheetVisible}
         title="Create Sub-Bubble"
@@ -154,6 +199,25 @@ export default function BubbleDetailScreen() {
           setSheetInitialName('New Bubble');
         }}
       />
+      <SelectionSheet
+        visible={editSheetVisible}
+        title="Edit Bubble"
+        subtitle="Update the bubble name, color, and contacts."
+        confirmLabel="Save"
+        preselectedContactIds={bubble.contactIds}
+        initialBubbleName={title}
+        preselectedColorKey={bubble.colorKey}
+        onConfirm={handleEditBubble}
+        onCancel={() => setEditSheetVisible(false)}
+      />
+      <AddContactsSheet
+        visible={addContactsVisible}
+        title={`Add to ${title}`}
+        subtitle="Select contacts to add to this bubble."
+        contacts={availableContacts}
+        onConfirm={handleAddContacts}
+        onCancel={() => setAddContactsVisible(false)}
+      />
     </View>
   );
 }
@@ -165,6 +229,11 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     flex: 1,
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    right: 18,
+    zIndex: 80,
   },
   list: {
     flex: 1,

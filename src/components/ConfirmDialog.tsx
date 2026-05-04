@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Modal, Pressable,
+  View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Animated,
 } from 'react-native';
 import { Colors, Radius, Shadows, Spacing } from '../theme';
+import { useSwipeDismiss } from './useSwipeDismiss';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -23,10 +24,16 @@ export function ConfirmDialog({
   onCancel,
   danger = false,
 }: ConfirmDialogProps) {
+  const { panHandlers, animatedStyle } = useSwipeDismiss({ visible, onDismiss: onCancel });
+
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
-        <View style={styles.panel} onStartShouldSetResponder={() => true}>
+        <Animated.View
+          {...panHandlers}
+          style={[styles.panel, animatedStyle]}
+          onStartShouldSetResponder={() => true}
+        >
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
@@ -41,7 +48,7 @@ export function ConfirmDialog({
               <Text style={[styles.btnText, styles.btnPrimaryText]}>{confirmLabel}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </Pressable>
     </Modal>
   );

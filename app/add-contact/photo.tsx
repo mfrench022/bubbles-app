@@ -95,7 +95,7 @@ export default function UploadPhotoScreen() {
 
   return (
     <View style={styles.screen}>
-      <Header title="Upload Photo" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
+      <Header title="Upload Photo" centerTitle />
 
       <ScrollView
         style={styles.scroll}

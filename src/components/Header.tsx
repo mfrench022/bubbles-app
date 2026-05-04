@@ -23,6 +23,7 @@ interface HeaderProps {
   centerTitle?: boolean;
   leftSlot?: React.ReactNode;
   reserveSideRails?: boolean;
+  onTitlePress?: () => void;
 }
 
 export const HEADER_ROW_HEIGHT = 46;
@@ -46,6 +47,7 @@ export function Header({
   centerTitle = false,
   leftSlot,
   reserveSideRails = true,
+  onTitlePress,
 }: HeaderProps) {
   const insets = useSafeAreaInsets();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -150,25 +152,51 @@ export function Header({
 
           <View style={styles.titleWrap}>
             <View style={styles.titlePillShadow}>
-              <View style={styles.titlePillInner}>
-                <BlurView pointerEvents="none" intensity={70} tint="light" style={StyleSheet.absoluteFillObject} />
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.10)']}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0)']}
-                  style={styles.titlePillSpecular}
-                />
-                <Text
-                  style={[styles.title, centerTitle && styles.titleCenter]}
-                  numberOfLines={1}
+              {onTitlePress ? (
+                <TouchableOpacity
+                  onPress={onTitlePress}
+                  activeOpacity={0.82}
+                  style={styles.titlePillInner}
                 >
-                  {title}
-                </Text>
-              </View>
+                  <BlurView pointerEvents="none" intensity={70} tint="light" style={StyleSheet.absoluteFillObject} />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.10)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0)']}
+                    style={styles.titlePillSpecular}
+                  />
+                  <Text
+                    style={[styles.title, centerTitle && styles.titleCenter]}
+                    numberOfLines={1}
+                  >
+                    {title}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.titlePillInner}>
+                  <BlurView pointerEvents="none" intensity={70} tint="light" style={StyleSheet.absoluteFillObject} />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.40)', 'rgba(255,255,255,0.10)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0)']}
+                    style={styles.titlePillSpecular}
+                  />
+                  <Text
+                    style={[styles.title, centerTitle && styles.titleCenter]}
+                    numberOfLines={1}
+                  >
+                    {title}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -193,6 +221,7 @@ export function Header({
               data={searchResults}
               keyExtractor={item => String(item.id)}
               scrollEnabled={false}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.searchResult}

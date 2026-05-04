@@ -108,7 +108,7 @@ export default function PasteTextScreen() {
 
   return (
     <View style={styles.screen}>
-      <Header title="Paste Text" showBack backStyle="pill" onBack={() => router.back()} centerTitle />
+      <Header title="Paste Text" centerTitle />
 
       <ScrollView
         style={styles.scroll}

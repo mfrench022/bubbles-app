@@ -25,6 +25,7 @@ interface BubbleChartProps {
   chartHeight: number;
   onBubbleTap: (bubbleId: string) => void;
   onAvatarTap: (contactId: number) => void;
+  onBackgroundTap?: () => void;
   interactiveCanvas?: boolean;
   visualScale?: Animated.Value | number;
   interactionScale?: number;
@@ -135,6 +136,7 @@ export function BubbleChart({
   chartHeight,
   onBubbleTap,
   onAvatarTap,
+  onBackgroundTap,
   interactiveCanvas = false,
   visualScale = 1,
   interactionScale = 1,
@@ -848,7 +850,7 @@ export function BubbleChart({
     onStartShouldSetPanResponder: event => {
       if (interactionPaused) return false;
       const point = normalizePoint(event.nativeEvent.locationX, event.nativeEvent.locationY);
-      return enableInfiniteCanvas || Boolean(hitTestSource(point.x, point.y));
+      return enableInfiniteCanvas || Boolean(hitTestSource(point.x, point.y)) || Boolean(onBackgroundTap);
     },
     onMoveShouldSetPanResponder: (_, gestureState) => (
       !interactionPaused && enableInfiniteCanvas
@@ -918,7 +920,7 @@ export function BubbleChart({
       const pendingHit = pendingHitRef.current;
       const pressPoint = pressPointRef.current;
       const wasPanning = isPanningRef.current;
-      const moved = pendingHit && pressPoint
+      const moved = pressPoint
         ? Math.hypot(point.x - pressPoint.x, point.y - pressPoint.y)
         : Infinity;
       isPanningRef.current = false;
@@ -931,6 +933,7 @@ export function BubbleChart({
         settleCameraToFocus();
       }
       if (!wasPanning && pendingHit && moved <= TAP_MOVE_THRESHOLD) pendingHit.onTap();
+      else if (!wasPanning && !pendingHit && moved <= TAP_MOVE_THRESHOLD) onBackgroundTap?.();
     },
     onPanResponderTerminate: () => {
       clearPendingPress();
@@ -950,6 +953,7 @@ export function BubbleChart({
     hitTestSource,
     interactionPaused,
     normalizePoint,
+    onBackgroundTap,
     settleCameraToFocus,
     startDrag,
     updateDrag,

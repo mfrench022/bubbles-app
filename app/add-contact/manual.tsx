@@ -143,7 +143,7 @@ export default function ManualEntryScreen() {
     if (!parsedContactId) return;
     setConfirmVisible(false);
     deleteContact(parsedContactId);
-    router.replace('/');
+    router.navigate('/');
   }, [deleteContact, parsedContactId, router]);
 
   const toggleBubble = useCallback((id: string) => {
@@ -174,7 +174,7 @@ export default function ManualEntryScreen() {
         backStyle="pill"
         onBack={() => {
           if (isEdit) router.back();
-          else router.replace('/');
+          else router.navigate('/');
         }}
         centerTitle
       />

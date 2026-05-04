@@ -60,9 +60,9 @@ export default function RootLayout() {
                 active={activeTab}
                 backgroundColors={activeBackgroundColors}
                 onPress={tab => {
-                  if (tab === 'bubbles') router.replace('/');
-                  else if (tab === 'add') router.replace('/add-contact/manual');
-                  else router.replace('/profile');
+                  if (tab === 'bubbles') router.navigate('/');
+                  else if (tab === 'add') router.navigate('/add-contact/manual');
+                  else router.navigate('/profile');
                 }}
               />
             ) : null}

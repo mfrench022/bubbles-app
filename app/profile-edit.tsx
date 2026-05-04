@@ -156,9 +156,6 @@ export default function ProfileEditScreen() {
     <View style={styles.screen}>
       <Header
         title="Edit Profile"
-        showBack
-        backStyle="pill"
-        onBack={() => router.back()}
         centerTitle
       />
 

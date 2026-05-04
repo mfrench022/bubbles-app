@@ -114,7 +114,7 @@ export default function ContactDetailScreen() {
   if (!contact) {
     return (
       <View style={styles.screen}>
-        <Header title="Contact" showBack onBack={() => router.back()} centerTitle />
+        <Header title="Contact" centerTitle />
         <Text style={styles.notFound}>Contact not found.</Text>
       </View>
     );
@@ -229,9 +229,6 @@ export default function ContactDetailScreen() {
     <View style={styles.screen}>
       <Header
         title={contact.name}
-        showBack
-        backStyle="pill"
-        onBack={() => router.back()}
         centerTitle
       />
 

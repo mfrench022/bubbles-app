@@ -153,6 +153,7 @@ interface AppState {
   nestBubbleIntoBubble: (sourceId: string, targetId: string) => boolean;
   moveContactToBubble: (contactId: number, sourceBubbleId: string, targetBubbleId: string) => boolean;
   removeContactFromBubble: (contactId: number, bubbleId: string) => boolean;
+  addContactsToBubble: (bubbleId: string, contactIds: number[]) => boolean;
   removeBubbleCategory: (bubbleId: string) => boolean;
   createSubBubbleFromContacts: (parentBubbleId: string, sourceContactId: number, targetContactId: number) => Bubble | null;
   applyBubbleAssignments: (contactId: number, selectedBubbleIds: Set<string>) => void;
@@ -420,6 +421,36 @@ export const useStore = create<AppState>((set, get) => ({
               : b
           )
           .filter(b => !(b.parentId && b.contactIds.length === 0))
+      ),
+    }));
+    get().save();
+    return true;
+  },
+
+  addContactsToBubble: (bubbleId, contactIds) => {
+    const { bubbles } = get();
+    const bubble = bubbles.find(candidate => candidate.id === bubbleId);
+    if (!bubble) return false;
+
+    const uniqueContactIds = [...new Set(contactIds.filter(Boolean))];
+    if (uniqueContactIds.length === 0) return false;
+
+    const bubbleIdsToUpdate = new Set<string>();
+    let cursor: Bubble | undefined = bubble;
+    while (cursor) {
+      bubbleIdsToUpdate.add(cursor.id);
+      cursor = cursor.parentId ? bubbles.find(candidate => candidate.id === cursor?.parentId) : undefined;
+    }
+
+    set(state => ({
+      bubbles: normalizeBubbleSizes(
+        state.bubbles.map(candidate => {
+          if (!bubbleIdsToUpdate.has(candidate.id)) return candidate;
+          return {
+            ...candidate,
+            contactIds: [...new Set([...candidate.contactIds, ...uniqueContactIds])],
+          };
+        })
       ),
     }));
     get().save();

@@ -1,80 +1,71 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Animated, View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Modal, Pressable, ScrollView,
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useStore } from '../store';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  BUBBLE_COLOR_OPTIONS,
-  BubbleColorKey,
-  Colors,
-  Radius,
-  Spacing,
-  getBubblePalette,
-} from '../theme';
+import { Contact } from '../data/contacts';
+import { Colors, Radius, Spacing } from '../theme';
 import { Avatar } from './Avatar';
 import { useSwipeDismiss } from './useSwipeDismiss';
 
-const EMPTY_CONTACT_IDS: number[] = [];
-
-interface SelectionSheetProps {
+interface AddContactsSheetProps {
   visible: boolean;
+  contacts: Contact[];
   title?: string;
   subtitle?: string;
-  confirmLabel?: string;
-  preselectedContactIds?: number[];
-  initialBubbleName?: string;
-  preselectedColorKey?: BubbleColorKey;
-  onConfirm: (bubbleName: string, selectedContactIds: number[], colorKey: BubbleColorKey) => void;
+  onConfirm: (selectedContactIds: number[]) => void;
   onCancel: () => void;
 }
 
-export function SelectionSheet({
+export function AddContactsSheet({
   visible,
-  title = 'Add to New Bubble',
-  subtitle = 'Select more contacts to include.',
-  confirmLabel = 'Done',
-  preselectedContactIds = EMPTY_CONTACT_IDS,
-  initialBubbleName = 'New Bubble',
-  preselectedColorKey = 'violet',
+  contacts,
+  title = 'Add Contacts',
+  subtitle = 'Select contacts to include in this bubble.',
   onConfirm,
   onCancel,
-}: SelectionSheetProps) {
-  const contacts = useStore(s => s.contacts);
-  const [bubbleName, setBubbleName] = useState(initialBubbleName);
+}: AddContactsSheetProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(preselectedContactIds));
-  const [colorKey, setColorKey] = useState<BubbleColorKey>(preselectedColorKey);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const { panHandlers, animatedStyle } = useSwipeDismiss({ visible, onDismiss: onCancel });
 
   useEffect(() => {
     if (!visible) return;
-    setBubbleName(initialBubbleName);
     setSearchQuery('');
-    setSelectedIds(new Set(preselectedContactIds));
-    setColorKey(preselectedColorKey);
-  }, [initialBubbleName, preselectedColorKey, preselectedContactIds, visible]);
+    setSelectedIds(new Set());
+  }, [visible]);
 
-  const filtered = searchQuery.trim()
-    ? contacts.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.email.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : contacts;
+  const filteredContacts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const sortedContacts = [...contacts].sort((a, b) => a.name.localeCompare(b.name));
+    if (!normalizedQuery) return sortedContacts;
+    return sortedContacts.filter(contact =>
+      contact.name.toLowerCase().includes(normalizedQuery) ||
+      contact.email.toLowerCase().includes(normalizedQuery)
+    );
+  }, [contacts, searchQuery]);
 
-  const toggleContact = useCallback((id: number) => {
+  const toggleContact = useCallback((contactId: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(contactId)) next.delete(contactId);
+      else next.add(contactId);
       return next;
     });
   }, []);
 
   const handleConfirm = useCallback(() => {
-    onConfirm(bubbleName || 'New Bubble', Array.from(selectedIds), colorKey);
-  }, [bubbleName, colorKey, selectedIds, onConfirm]);
+    onConfirm(Array.from(selectedIds));
+  }, [onConfirm, selectedIds]);
+
+  const hasSelections = selectedIds.size > 0;
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onCancel}>
@@ -93,43 +84,6 @@ export function SelectionSheet({
 
             <View style={styles.fields}>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Bubble Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={bubbleName}
-                  onChangeText={setBubbleName}
-                  placeholder="New Bubble"
-                  placeholderTextColor={Colors.textMuted}
-                />
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Color</Text>
-                <View style={styles.colorGrid}>
-                  {BUBBLE_COLOR_OPTIONS.map(option => {
-                    const palette = getBubblePalette(option.key);
-                    const selected = colorKey === option.key;
-                    return (
-                      <TouchableOpacity
-                        key={option.key}
-                        style={[styles.colorOption, selected && styles.colorOptionSelected]}
-                        onPress={() => setColorKey(option.key)}
-                        activeOpacity={0.85}
-                      >
-                        <LinearGradient
-                          colors={palette.colors}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.colorSwatch}
-                        />
-                        <Text style={[styles.colorLabel, selected && styles.colorLabelSelected]}>
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-              <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Search Contacts</Text>
                 <TextInput
                   style={styles.input}
@@ -142,7 +96,7 @@ export function SelectionSheet({
             </View>
 
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-              {filtered.map(contact => (
+              {filteredContacts.length > 0 ? filteredContacts.map(contact => (
                 <TouchableOpacity
                   key={contact.id}
                   style={[styles.contactRow, selectedIds.has(contact.id) && styles.contactRowSelected]}
@@ -150,12 +104,22 @@ export function SelectionSheet({
                   activeOpacity={0.7}
                 >
                   <Avatar name={contact.name} color={contact.color} image={contact.image} size={40} />
-                  <Text style={styles.contactName} numberOfLines={1}>{contact.name}</Text>
+                  <View style={styles.contactMeta}>
+                    <Text style={styles.contactName} numberOfLines={1}>{contact.name}</Text>
+                    <Text style={styles.contactDetail} numberOfLines={1}>{contact.email}</Text>
+                  </View>
                   <View style={[styles.check, selectedIds.has(contact.id) && styles.checkSelected]}>
                     {selectedIds.has(contact.id) && <Text style={styles.checkmark}>✓</Text>}
                   </View>
                 </TouchableOpacity>
-              ))}
+              )) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyTitle}>No more contacts to add</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Everyone in your address book is already part of this bubble.
+                  </Text>
+                </View>
+              )}
             </ScrollView>
 
             <View style={styles.actions}>
@@ -163,11 +127,16 @@ export function SelectionSheet({
                 <Text style={styles.actionBtnText}>Not Now</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                style={[
+                  styles.actionBtn,
+                  styles.actionBtnPrimary,
+                  !hasSelections && styles.actionBtnDisabled,
+                ]}
                 onPress={handleConfirm}
                 activeOpacity={0.7}
+                disabled={!hasSelections}
               >
-                <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>{confirmLabel}</Text>
+                <Text style={[styles.actionBtnText, styles.actionBtnPrimaryText]}>Add</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -256,37 +225,8 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
   },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  colorOption: {
-    width: '18%',
-    minWidth: 60,
-    alignItems: 'center',
-    gap: 6,
-  },
-  colorOptionSelected: {
-    transform: [{ scale: 1.04 }],
-  },
-  colorSwatch: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.75)',
-  },
-  colorLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textMuted,
-  },
-  colorLabelSelected: {
-    color: Colors.text,
-  },
   list: {
-    maxHeight: 280,
+    maxHeight: 320,
     marginHorizontal: Spacing.xl,
   },
   contactRow: {
@@ -300,10 +240,17 @@ const styles = StyleSheet.create({
   contactRowSelected: {
     backgroundColor: Colors.primary,
   },
-  contactName: {
+  contactMeta: {
     flex: 1,
+    gap: 2,
+  },
+  contactName: {
     fontSize: 16,
     color: Colors.text,
+  },
+  contactDetail: {
+    fontSize: 13,
+    color: Colors.textMuted,
   },
   check: {
     width: 24,
@@ -324,6 +271,23 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '600',
   },
+  emptyState: {
+    paddingVertical: 28,
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   actions: {
     flexDirection: 'row',
     gap: 8,
@@ -343,6 +307,9 @@ const styles = StyleSheet.create({
   actionBtnPrimary: {
     backgroundColor: Colors.primarySolid,
     borderColor: Colors.primarySolid,
+  },
+  actionBtnDisabled: {
+    opacity: 0.5,
   },
   actionBtnText: {
     fontSize: 16,
