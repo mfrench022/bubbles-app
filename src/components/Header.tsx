@@ -3,7 +3,6 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard,
   FlatList,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '../store';
@@ -11,6 +10,7 @@ import { Colors, Radius, Shadows, Typography } from '../theme';
 import { SearchIcon, BackChevronIcon, BackIcon, CloseIcon } from './Icons';
 import { Avatar } from './Avatar';
 import { GlassIconButton } from './GlassIconButton';
+import { useAppSafeAreaInsets } from '../utils/pwaSafeArea';
 
 interface HeaderProps {
   title: string;
@@ -31,7 +31,7 @@ export const HEADER_BOTTOM_GAP = 8;
 export const HEADER_HORIZONTAL_PADDING = 17;
 
 export function useHeaderInset() {
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
   const topPad = Math.max(36, insets.top + 10);
   return topPad + HEADER_ROW_HEIGHT + HEADER_BOTTOM_GAP;
 }
@@ -49,7 +49,7 @@ export function Header({
   reserveSideRails = true,
   onTitlePress,
 }: HeaderProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);

@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Radius } from '../theme';
 import { BubblesIcon, AddIcon, ProfileIcon } from './Icons';
+import { useAppSafeAreaInsets } from '../utils/pwaSafeArea';
 
 type NavTab = 'bubbles' | 'add' | 'profile';
 
@@ -21,7 +21,7 @@ interface BottomNavProps {
 }
 
 export function useBottomNavInset() {
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
   return (
     BOTTOM_NAV_SHELL_HEIGHT
     + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER)
@@ -30,7 +30,7 @@ export function useBottomNavInset() {
 }
 
 export function useBottomNavDockInset() {
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
   return (
     BOTTOM_NAV_SHELL_HEIGHT
     + Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER)
@@ -39,7 +39,7 @@ export function useBottomNavDockInset() {
 }
 
 export function BottomNav({ active, onPress }: BottomNavProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, BOTTOM_NAV_BOTTOM_GUTTER);
   return (
     <View pointerEvents="box-none" style={[styles.safeArea, { paddingBottom: bottomInset }]}>

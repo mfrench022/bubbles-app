@@ -69,7 +69,7 @@ export function AddContactsSheet({
   const hasSelections = selectedIds.size > 0;
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onCancel}>
+    <Modal transparent visible={visible} animationType="none" onRequestClose={onCancel}>
       <View style={styles.modalRoot}>
         <Pressable style={styles.backdrop} onPress={onCancel} />
         <View pointerEvents="box-none" style={styles.panelContainer}>

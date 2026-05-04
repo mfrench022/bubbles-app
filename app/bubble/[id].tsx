@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, LayoutChangeEvent } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store';
 import { Header, useHeaderInset } from '../../src/components/Header';
 import { BubbleChart } from '../../src/components/BubbleChart';
@@ -17,6 +16,7 @@ import { ContactModeButton } from '../../src/components/ContactModeButton';
 import { GlassIconButton } from '../../src/components/GlassIconButton';
 import { PlusIcon } from '../../src/components/Icons';
 import { AddContactsSheet } from '../../src/components/AddContactsSheet';
+import { useAppSafeAreaInsets } from '../../src/utils/pwaSafeArea';
 
 export default function BubbleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,7 +28,7 @@ export default function BubbleDetailScreen() {
   const addContactsToBubble = useStore(s => s.addContactsToBubble);
   const bottomNavInset = useBottomNavInset();
   const headerInset = useHeaderInset();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
 
   const [mode, setMode] = useState<'bubble' | 'contact'>('bubble');
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });

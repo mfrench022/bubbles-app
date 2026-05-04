@@ -15,6 +15,15 @@ if ('serviceWorker' in navigator) {
 }
 `;
 
+const safeAreaCss = `
+:root {
+  --pwa-safe-area-top: env(safe-area-inset-top, 0px);
+  --pwa-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --pwa-safe-area-left: env(safe-area-inset-left, 0px);
+  --pwa-safe-area-right: env(safe-area-inset-right, 0px);
+}
+`;
+
 export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="en">
@@ -32,6 +41,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-title" content="Bubbles" />
         <link rel="manifest" href={`${baseUrl}/manifest.json`} />
         <link rel="apple-touch-icon" href={`${baseUrl}/apple-touch-icon.png`} />
+        <style dangerouslySetInnerHTML={{ __html: safeAreaCss }} />
         <script dangerouslySetInnerHTML={{ __html: serviceWorkerBootstrap }} />
         <ScrollViewStyleReset />
       </head>

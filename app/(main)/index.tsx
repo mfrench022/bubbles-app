@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, LayoutChangeEvent } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../../src/store';
 import { Header, useHeaderInset } from '../../src/components/Header';
 import { ZoomableBubbleChart } from '../../src/components/ZoomableBubbleChart';
@@ -16,6 +15,7 @@ import { PlusIcon } from '../../src/components/Icons';
 import { BubbleColorKey, Colors } from '../../src/theme';
 import { ContactModeButton } from '../../src/components/ContactModeButton';
 import { GlassIconButton } from '../../src/components/GlassIconButton';
+import { useAppSafeAreaInsets } from '../../src/utils/pwaSafeArea';
 
 export default function MainScreen() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function MainScreen() {
   const addBubble = useStore(s => s.addBubble);
   const bottomNavInset = useBottomNavInset();
   const headerInset = useHeaderInset();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeAreaInsets();
 
   const [mode, setMode] = useState<'bubble' | 'contact'>('bubble');
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
