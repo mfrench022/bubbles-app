@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
   },
   message: {
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: Colors.text,
   },
   btnPrimaryText: {

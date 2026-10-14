@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
     color: Colors.text,
   },
   subtitle: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   colorLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.textMuted,
   },
   colorLabelSelected: {
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   checkmark: {
     fontSize: 14,
     color: Colors.text,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
   },
   actions: {
     flexDirection: 'row',
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
   },
   actionBtnPrimaryText: {

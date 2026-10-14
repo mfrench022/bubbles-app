@@ -73,7 +73,7 @@ export function Avatar({ name, color, image, size, style, onPress, onLongPress, 
 const styles = StyleSheet.create({
   initials: {
     color: 'rgba(255, 255, 255, 0.92)',
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
     letterSpacing: 0.5,
   },
 });

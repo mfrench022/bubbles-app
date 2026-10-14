@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     color: Colors.text,
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
   },
   socialValue: {
     flex: 1,

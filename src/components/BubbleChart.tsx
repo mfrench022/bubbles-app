@@ -1359,7 +1359,7 @@ const styles = StyleSheet.create({
   canvasHintText: {
     color: Colors.textMuted,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
   },
   bubble: {
     position: 'absolute',
@@ -1379,7 +1379,7 @@ const styles = StyleSheet.create({
   bubbleSmall: {},
   bubbleLabel: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
     color: Colors.inverseText,
     textAlign: 'center',
     letterSpacing: -0.2,
@@ -1390,7 +1390,7 @@ const styles = StyleSheet.create({
   },
   bubbleLabelSmall: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Nunito_700Bold',
   },
   bubbleHighlighted: {
     shadowColor: '#b9a8ff',
@@ -1413,7 +1413,7 @@ const styles = StyleSheet.create({
   avatarName: {
     fontSize: 11,
     lineHeight: 13,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
     textAlign: 'center',
     letterSpacing: -0.1,

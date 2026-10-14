@@ -42,7 +42,7 @@ function Field({
 
 const fieldStyles = StyleSheet.create({
   container: { gap: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.3 },
+  label: { fontSize: 13, fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, letterSpacing: 0.3 },
   input: {
     height: 44,
     borderRadius: Radius.md,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: 88, height: 88, borderRadius: 44 },
-  avatarInitials: { fontSize: 28, fontWeight: '700', color: 'white' },
+  avatarInitials: { fontSize: 28, fontFamily: 'Nunito_700Bold', color: 'white' },
   avatarHint: {
     position: 'absolute',
     bottom: 0,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FBE8E6',
   },
-  removeBtnText: { fontSize: 18, color: '#d9534f', fontWeight: '600' },
+  removeBtnText: { fontSize: 18, color: '#d9534f', fontFamily: 'Nunito_600SemiBold' },
   addRowBtn: { paddingVertical: 4 },
   addRowBtnText: { fontSize: 15, color: Colors.primarySolid },
   actions: { flexDirection: 'row', gap: 8 },
@@ -333,14 +333,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.inputBorder,
   },
   actionBtnPrimary: { backgroundColor: Colors.primarySolid, borderColor: Colors.primarySolid },
-  actionBtnText: { fontSize: 16, fontWeight: '500', color: Colors.text },
+  actionBtnText: { fontSize: 16, fontFamily: 'Nunito_500Medium', color: Colors.text },
   actionBtnPrimaryText: { color: Colors.inverseText },
   dangerBtn: {
     backgroundColor: '#FBE8E6',
     borderColor: '#F0C3BE',
     flex: 0,
   },
-  dangerBtnText: { fontSize: 16, fontWeight: '500', color: '#d9534f' },
+  dangerBtnText: { fontSize: 16, fontFamily: 'Nunito_500Medium', color: '#d9534f' },
   status: {
     textAlign: 'center',
     color: Colors.textMuted,

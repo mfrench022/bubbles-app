@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 17,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
   },
   email: {

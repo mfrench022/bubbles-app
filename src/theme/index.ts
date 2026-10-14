@@ -66,39 +66,46 @@ export const Colors = {
   shadow: '#B9AD9A',
 };
 
+export const FontFamilies = {
+  regular: 'Nunito_400Regular',
+  medium: 'Nunito_500Medium',
+  semiBold: 'Nunito_600SemiBold',
+  bold: 'Nunito_700Bold',
+} as const;
+
 export const Typography = {
   title: {
     fontSize: 34,
-    fontWeight: '700' as const,
+    fontFamily: FontFamilies.bold,
     letterSpacing: -1.4,
     color: Colors.text,
   },
   titleDetail: {
     fontSize: 21,
-    fontWeight: '700' as const,
+    fontFamily: FontFamilies.bold,
     letterSpacing: -0.5,
     color: Colors.text,
     textAlign: 'center' as const,
   },
   body: {
     fontSize: 16,
-    fontWeight: '400' as const,
+    fontFamily: FontFamilies.regular,
     color: Colors.text,
   },
   bodyMuted: {
     fontSize: 15,
-    fontWeight: '400' as const,
+    fontFamily: FontFamilies.regular,
     color: Colors.textMuted,
   },
   label: {
     fontSize: 13,
-    fontWeight: '500' as const,
+    fontFamily: FontFamilies.medium,
     color: Colors.textMuted,
     letterSpacing: 0.2,
   },
   cardTitle: {
     fontSize: 13,
-    fontWeight: '600' as const,
+    fontFamily: FontFamilies.semiBold,
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase' as const,

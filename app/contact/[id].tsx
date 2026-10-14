@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   },
   notesTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   noteDate: {
     fontSize: 12,
     color: Colors.textMuted,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
   },
   noteText: {
     fontSize: 15,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: Colors.text,
   },
   notFound: {

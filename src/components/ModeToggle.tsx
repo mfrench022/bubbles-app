@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: Colors.textMuted,
   },
   labelActive: {

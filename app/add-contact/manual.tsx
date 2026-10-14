@@ -42,7 +42,7 @@ function Field({
 
 const fieldStyles = StyleSheet.create({
   container: { gap: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.3 },
+  label: { fontSize: 13, fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, letterSpacing: 0.3 },
   input: {
     height: 44, borderRadius: Radius.md, borderWidth: 1,
     borderColor: Colors.inputBorder, backgroundColor: Colors.inputBg,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   importActionText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
   },
   avatarBtn: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     marginBottom: 8, overflow: 'hidden',
   },
   avatarImg: { width: 88, height: 88, borderRadius: 44 },
-  avatarInitials: { fontSize: 28, fontWeight: '700', color: 'white' },
+  avatarInitials: { fontSize: 28, fontFamily: 'Nunito_700Bold', color: 'white' },
   avatarHint: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.4)', textAlign: 'center',
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.stroke, padding: Spacing.lg, gap: 12,
   },
   cardTitle: {
-    fontSize: 13, fontWeight: '600', color: Colors.textMuted,
+    fontSize: 13, fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted,
     letterSpacing: 0.5, textTransform: 'uppercase',
   },
   socialRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     width: 30, height: 44, alignItems: 'center', justifyContent: 'center',
     borderRadius: 8, backgroundColor: '#FBE8E6',
   },
-  removeBtnText: { fontSize: 18, color: '#d9534f', fontWeight: '600' },
+  removeBtnText: { fontSize: 18, color: '#d9534f', fontFamily: 'Nunito_600SemiBold' },
   addRowBtn: { paddingVertical: 4 },
   addRowBtnText: { fontSize: 15, color: Colors.primarySolid },
   bubblePicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceAlt,
     borderColor: Colors.stroke,
   },
-  actionBtnText: { fontSize: 16, fontWeight: '500', color: Colors.text },
+  actionBtnText: { fontSize: 16, fontFamily: 'Nunito_500Medium', color: Colors.text },
   actionBtnPrimaryText: { color: Colors.inverseText },
   actionBtnPrimaryTextMuted: { color: Colors.textMuted },
   dangerBtn: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   dangerBtnText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: '#d9534f',
   },
   status: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginTop: 4 },

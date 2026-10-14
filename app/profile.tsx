@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   },
   bubblesTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Nunito_600SemiBold',
     color: Colors.text,
   },
   chevronWrap: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: Colors.text,
   },
 });

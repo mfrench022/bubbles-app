@@ -192,9 +192,9 @@ const styles = StyleSheet.create({
   },
   preview: { width: '100%', height: 200, borderRadius: Radius.md },
   dropIcon: { fontSize: 40, marginBottom: 12 },
-  dropTitle: { fontSize: 17, fontWeight: '600', color: Colors.text, marginBottom: 6 },
+  dropTitle: { fontSize: 17, fontFamily: 'Nunito_600SemiBold', color: Colors.text, marginBottom: 6 },
   dropSubtitle: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
-  sectionLabel: { fontSize: 13, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.3 },
+  sectionLabel: { fontSize: 13, fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted, letterSpacing: 0.3 },
   textarea: {
     minHeight: 80, borderRadius: Radius.lg, borderWidth: 1,
     borderColor: Colors.inputBorder, backgroundColor: Colors.inputBg,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.stroke, padding: Spacing.lg, gap: 8,
   },
   cardTitle: {
-    fontSize: 13, fontWeight: '600', color: Colors.textMuted,
+    fontSize: 13, fontFamily: 'Nunito_600SemiBold', color: Colors.textMuted,
     letterSpacing: 0.5, textTransform: 'uppercase',
   },
   fieldRow: { flexDirection: 'row', gap: 12 },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   matchRowSelected: { backgroundColor: 'rgba(115,132,198,0.12)' },
   matchMeta: { flex: 1 },
-  matchName: { fontSize: 16, fontWeight: '500', color: Colors.text },
+  matchName: { fontSize: 16, fontFamily: 'Nunito_500Medium', color: Colors.text },
   matchDetail: { fontSize: 13, color: Colors.textMuted },
   check: { fontSize: 16, color: Colors.primarySolid },
   applyBtn: {
@@ -225,6 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.toggleActive, borderWidth: 1, borderColor: 'rgba(115,132,198,0.5)',
   },
   applyBtnDisabled: { opacity: 0.5 },
-  applyBtnText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  applyBtnText: { fontSize: 16, fontFamily: 'Nunito_600SemiBold', color: Colors.text },
   status: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
 });

@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     height: 52,
     color: Colors.text,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
   },
   searchClear: {
     width: 48,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   searchResultName: {
     flex: 1,
     fontSize: 17,
-    fontWeight: '500',
+    fontFamily: 'Nunito_500Medium',
     color: Colors.text,
   },
 });
